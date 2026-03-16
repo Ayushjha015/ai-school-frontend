@@ -49,6 +49,8 @@ export function useOrganizationBranchesQuery(orgId: string, page = 1, limit = 10
   });
 }
 
+export const useAdminOrganizationBranchesQuery = useOrganizationBranchesQuery;
+
 export function useOrgOverviewQuery() {
   return useQuery({
     queryKey: ['admin', 'org-overview'],

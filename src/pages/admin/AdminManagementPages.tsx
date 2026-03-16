@@ -29,6 +29,7 @@ import {
   useAdminGroupQuery,
   useAdminGroupsQuery,
   useAdminGroupStudentsQuery,
+  useAdminOrganizationBranchesQuery,
   useAdminStudentQuery,
   useAdminStudentResultsQuery,
   useAdminStudentSummaryQuery,
@@ -37,6 +38,7 @@ import {
   useAdminTeacherQuery,
   useAdminTeachersQuery,
 } from '../../hooks/useAdminQueries';
+import { useAuthStore } from '../../store/authStore';
 import type { ValidationErrorResponse } from '../../types/api';
 import { formatDateTime, formatPercentage, formatRoleLabel } from '../../utils/formatters';
 import { parseValidationErrors } from '../../utils/parseValidationErrors';
@@ -68,7 +70,7 @@ const studentSchema = z.object({
 
 const groupSchema = z.object({
   name: z.string().min(2, 'Enter the group name'),
-  teacherId: z.string().optional(),
+  branchId: z.string().min(1, 'Select a branch'),
 });
 
 const subjectSchema = z.object({
@@ -555,14 +557,15 @@ export function AdminGroupsPage() {
 export function AdminCreateGroupPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const teachersQuery = useAdminTeachersQuery(1, 100);
+  const user = useAuthStore((state) => state.user);
+  const branchesQuery = useAdminOrganizationBranchesQuery(user?.organizationId ?? '', 1, 100);
   const form = useForm<GroupForm>({
     resolver: zodResolver(groupSchema),
-    defaultValues: { name: '', teacherId: '' },
+    defaultValues: { name: '', branchId: '' },
   });
 
   const mutation = useMutation({
-    mutationFn: (values: GroupForm) => createGroup({ name: values.name, teacherId: values.teacherId || null }),
+    mutationFn: (values: GroupForm) => createGroup({ name: values.name, branchId: values.branchId }),
     onSuccess: async (group) => {
       toast.success('Group created.');
       await queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] });
@@ -571,17 +574,19 @@ export function AdminCreateGroupPage() {
     onError: () => toast.error('Unable to create the group right now.'),
   });
 
-  if (teachersQuery.isLoading) return <LoadingScreen label="Loading group form..." />;
-  if (teachersQuery.isError || !teachersQuery.data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Group form data is unavailable right now.</div>;
+  if (branchesQuery.isLoading) return <LoadingScreen label="Loading group form..." />;
+  if (!user?.organizationId || branchesQuery.isError || !branchesQuery.data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Group form data is unavailable right now.</div>;
 
   return (
     <SectionCard title="Create group" eyebrow="Academic structure">
       <form className="grid gap-4 md:max-w-2xl" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
         <input {...form.register('name')} placeholder="Group name" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
-        <select {...form.register('teacherId')} className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100">
-          <option value="">Assign teacher later</option>
-          {teachersQuery.data.items.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
+        {form.formState.errors.name ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.name.message}</p> : null}
+        <select {...form.register('branchId')} className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100">
+          <option value="">Select branch</option>
+          {branchesQuery.data.items.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
         </select>
+        {form.formState.errors.branchId ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.branchId.message}</p> : null}
         <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
           {mutation.isPending ? 'Creating...' : 'Create group'}
         </button>
