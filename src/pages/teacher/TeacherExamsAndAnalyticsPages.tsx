@@ -21,7 +21,7 @@ import {
   useTeacherQuestionsQuery,
 } from '../../hooks/useTeacherQueries';
 import { formatDuration, formatPercentage, formatRelativeWindow } from '../../utils/formatters';
-import { localDateTimeToUtcIso } from '../../utils/localDateTime';
+import { localDateTimeToOffsetIso } from '../../utils/localDateTime';
 import { getStatusAccent, getStatusTone } from '../../utils/statusStyles';
 
 const examFilters = ['all', 'draft', 'published', 'ended'] as const;
@@ -149,8 +149,8 @@ export function CreateExamPage() {
   function submitDraft() {
     const startTime = form.getValues('startTime');
     const endTime = form.getValues('endTime');
-    const formattedStartTime = startTime ? localDateTimeToUtcIso(startTime) : null;
-    const formattedEndTime = endTime ? localDateTimeToUtcIso(endTime) : null;
+    const formattedStartTime = startTime ? localDateTimeToOffsetIso(startTime) : null;
+    const formattedEndTime = endTime ? localDateTimeToOffsetIso(endTime) : null;
 
     if (startTime && !formattedStartTime) {
       toast.error('Please choose a valid start time.');

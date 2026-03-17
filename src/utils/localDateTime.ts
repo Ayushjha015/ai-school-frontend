@@ -1,4 +1,12 @@
-export function localDateTimeToUtcIso(localDateTime: string): string | null {
+function formatOffset(offsetMinutes: number) {
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const absolute = Math.abs(offsetMinutes);
+  const hours = String(Math.floor(absolute / 60)).padStart(2, '0');
+  const minutes = String(absolute % 60).padStart(2, '0');
+  return `${sign}${hours}:${minutes}`;
+}
+
+export function localDateTimeToOffsetIso(localDateTime: string): string | null {
   const trimmed = localDateTime.trim();
 
   if (!trimmed) {
@@ -11,11 +19,11 @@ export function localDateTimeToUtcIso(localDateTime: string): string | null {
     return null;
   }
 
-  const [, year, month, day, hour, minute, second = '00'] = match;
+  const [, parsedYear, parsedMonth, parsedDay, hour, minute, second = '00'] = match;
   const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
+    Number(parsedYear),
+    Number(parsedMonth) - 1,
+    Number(parsedDay),
     Number(hour),
     Number(minute),
     Number(second),
@@ -26,5 +34,13 @@ export function localDateTimeToUtcIso(localDateTime: string): string | null {
     return null;
   }
 
-  return date.toISOString();
+  const offsetMinutes = -date.getTimezoneOffset();
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${formatOffset(offsetMinutes)}`;
 }
