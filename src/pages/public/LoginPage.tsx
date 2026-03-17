@@ -59,7 +59,7 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-3 py-4 sm:px-4 sm:py-8">
       <div className="grid w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/70 bg-white/80 shadow-2xl shadow-slate-900/10 backdrop-blur lg:grid-cols-[1.1fr_0.9fr] lg:rounded-[36px]">
-        <section className="bg-slate-950 px-6 py-8 text-white sm:px-10 sm:py-10 lg:px-14 lg:py-16">
+        <section className="hidden bg-slate-950 px-6 py-8 text-white sm:px-10 sm:py-10 lg:block lg:px-14 lg:py-16">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">AI School</p>
           <h1 className="mt-6 max-w-lg text-3xl font-semibold leading-tight sm:text-5xl">
             Organization login for a connected academic workspace.
@@ -79,17 +79,22 @@ export function LoginPage() {
           </div>
         </section>
 
-        <section className="px-5 py-7 sm:px-8 sm:py-9 lg:px-12 lg:py-14">
+        <section className="bg-slate-950 px-4 py-5 text-white sm:px-8 sm:py-9 lg:bg-transparent lg:px-12 lg:py-14 lg:text-inherit">
           <div className="mx-auto max-w-md">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Organization access</p>
-            <h2 className="mt-3 text-2xl font-semibold text-slate-900 sm:text-3xl">Log in to continue</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+            <div className="mb-5 lg:hidden">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">AI School</p>
+              <p className="mt-3 text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Organization access</p>
+            </div>
+
+            <p className="hidden text-sm font-semibold uppercase tracking-[0.24em] text-slate-500 lg:block">Organization access</p>
+            <h2 className="text-2xl font-semibold text-white sm:text-3xl lg:mt-3 lg:text-slate-900">Log in to continue</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300 lg:mt-3 lg:text-slate-600">
               Use your account email and password to continue into your organization workspace.
             </p>
 
-            <form className="mt-8 space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
+            <form className="mt-6 space-y-4 lg:mt-8 lg:space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor="email">
+                <label className="mb-2 block text-sm font-medium text-slate-200 lg:text-slate-700" htmlFor="email">
                   Email
                 </label>
                 <input
@@ -97,14 +102,14 @@ export function LoginPage() {
                   type="email"
                   autoComplete="email"
                   {...form.register('email')}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-800/90 px-4 py-3 text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/15 lg:border-slate-200 lg:bg-white lg:text-slate-900 lg:focus:ring-emerald-100"
                   placeholder="name@organization.com"
                 />
                 {form.formState.errors.email ? <p className="mt-2 text-sm text-rose-500">{form.formState.errors.email.message}</p> : null}
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor="password">
+                <label className="mb-2 block text-sm font-medium text-slate-200 lg:text-slate-700" htmlFor="password">
                   Password
                 </label>
                 <input
@@ -112,7 +117,7 @@ export function LoginPage() {
                   type="password"
                   autoComplete="current-password"
                   {...form.register('password')}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-800/90 px-4 py-3 text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/15 lg:border-slate-200 lg:bg-white lg:text-slate-900 lg:focus:ring-emerald-100"
                   placeholder="Minimum 8 characters"
                 />
                 {form.formState.errors.password ? <p className="mt-2 text-sm text-rose-500">{form.formState.errors.password.message}</p> : null}
@@ -127,10 +132,10 @@ export function LoginPage() {
               </button>
             </form>
 
-            <p className="mt-8 text-sm leading-6 text-slate-500">
+            <p className="mt-6 text-sm leading-6 text-slate-400 lg:mt-8 lg:text-slate-500">
               After sign-in, the app will take you to the right workspace automatically based on your assigned role.
             </p>
-            <Link to="/" className="mt-4 inline-flex text-sm font-semibold text-slate-700 underline-offset-4 hover:underline">
+            <Link to="/" className="mt-4 inline-flex text-sm font-semibold text-slate-200 underline-offset-4 hover:underline lg:text-slate-700">
               Return to homepage
             </Link>
           </div>
