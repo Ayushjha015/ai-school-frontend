@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -68,7 +68,7 @@ type ExamBuilderForm = {
   title: string;
   subjectId: string;
   topic: string;
-  timeLimitMinutes: number;
+  timeLimitMinutes?: number;
   startTime: string;
   endTime: string;
 };
@@ -77,6 +77,7 @@ export function CreateExamPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const subjectsQuery = useSubjectsQuery(1, 100);
+  const groupsQuery = useTeacherGroupsQuery(1, 100);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Record<string, number>>({});
   const [questionCatalog, setQuestionCatalog] = useState<Record<string, QuestionResponse>>({});
   const [step, setStep] = useState(1);
@@ -84,6 +85,10 @@ export function CreateExamPage() {
   const [topicInput, setTopicInput] = useState('');
   const [debouncedTopic, setDebouncedTopic] = useState('');
   const [sortByCreatedAt, setSortByCreatedAt] = useState<'desc' | 'asc'>('desc');
+  const [savedDraftExamId, setSavedDraftExamId] = useState<string | null>(null);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const startTimeInputRef = useRef<HTMLInputElement | null>(null);
+  const endTimeInputRef = useRef<HTMLInputElement | null>(null);
   const questionsQuery = useTeacherQuestionsQuery({
     subjectId: subjectFilter || undefined,
     topic: debouncedTopic || undefined,
@@ -91,7 +96,43 @@ export function CreateExamPage() {
     page: 1,
     limit: 50,
   });
-  const form = useForm<ExamBuilderForm>({ defaultValues: { title: '', subjectId: '', topic: '', timeLimitMinutes: 30, startTime: '', endTime: '' } });
+  const form = useForm<ExamBuilderForm>({ defaultValues: { title: '', subjectId: '', topic: '', timeLimitMinutes: undefined, startTime: '', endTime: '' } });
+  const titleField = form.register('title', { required: 'Enter an exam title.' });
+  const subjectField = form.register('subjectId', { required: 'Select a subject.' });
+  const timeLimitField = form.register('timeLimitMinutes', {
+    valueAsNumber: true,
+    required: 'Enter the exam time limit.',
+    validate: (value) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? true : 'Enter a valid time limit in minutes.'),
+  });
+  const startTimeField = form.register('startTime', { required: 'Select a start time.' });
+  const endTimeField = form.register('endTime', {
+    required: 'Select an end time.',
+    validate: (value) => {
+      if (!value) {
+        return 'Select an end time.';
+      }
+
+      const startTime = form.getValues('startTime');
+      if (!startTime) {
+        return true;
+      }
+
+      return value > startTime ? true : 'End time must be after the start time.';
+    },
+  });
+  const { errors } = form.formState;
+
+  function openNativeDateTimePicker(input: HTMLInputElement | null) {
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+
+    if ('showPicker' in input && typeof input.showPicker === 'function') {
+      input.showPicker();
+    }
+  }
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -117,12 +158,11 @@ export function CreateExamPage() {
 
   const createMutation = useMutation({
     mutationFn: createExam,
-    onSuccess: async (exam) => {
-      toast.success('Exam draft created.');
-      await queryClient.invalidateQueries({ queryKey: ['teacher', 'exams'] });
-      navigate(`/teacher/exams/${exam.id}`);
-    },
     onError: () => toast.error('Unable to create exam draft right now.'),
+  });
+  const publishMutation = useMutation({
+    mutationFn: ({ examId, groupIds }: { examId: string; groupIds: string[] }) => publishExam(examId, groupIds),
+    onError: () => toast.error('Unable to publish exam right now.'),
   });
 
   const questionItems = questionsQuery.data?.items ?? [];
@@ -142,11 +182,17 @@ export function CreateExamPage() {
       .map((questionId) => questionCatalog[questionId])
       .filter(Boolean);
   }, [questionCatalog, selectedQuestionIds]);
+  const publishGroups = groupsQuery.data?.items ?? [];
 
-  if (subjectsQuery.isLoading || questionsQuery.isLoading) return <LoadingScreen label="Loading exam builder..." />;
+  if (subjectsQuery.isLoading || questionsQuery.isLoading || (step === 4 && groupsQuery.isLoading)) return <LoadingScreen label="Loading exam builder..." />;
   if (subjectsQuery.isError || questionsQuery.isError || !subjectsQuery.data || !questionsQuery.data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load the exam builder.</div>;
+  if (step === 4 && (groupsQuery.isError || !groupsQuery.data)) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load your classes for publishing.</div>;
 
-  function submitDraft() {
+  async function ensureDraftExists() {
+    if (savedDraftExamId) {
+      return savedDraftExamId;
+    }
+
     const startTime = form.getValues('startTime');
     const endTime = form.getValues('endTime');
     const formattedStartTime = startTime ? localDateTimeToOffsetIso(startTime) : null;
@@ -154,15 +200,15 @@ export function CreateExamPage() {
 
     if (startTime && !formattedStartTime) {
       toast.error('Please choose a valid start time.');
-      return;
+      return null;
     }
 
     if (endTime && !formattedEndTime) {
       toast.error('Please choose a valid end time.');
-      return;
+      return null;
     }
 
-    createMutation.mutate({
+    const exam = await createMutation.mutateAsync({
       title: form.getValues('title'),
       subjectId: form.getValues('subjectId'),
       topic: form.getValues('topic') || null,
@@ -171,25 +217,131 @@ export function CreateExamPage() {
       endTime: formattedEndTime,
       questions: Object.entries(selectedQuestionIds).map(([questionId, marks]) => ({ questionId, marks })),
     });
+    setSavedDraftExamId(exam.id);
+    await queryClient.invalidateQueries({ queryKey: ['teacher', 'exams'] });
+    return exam.id;
+  }
+
+  async function handleSaveAndBack() {
+    const examId = await ensureDraftExists();
+    if (!examId) {
+      return;
+    }
+
+    toast.success('Exam saved.');
+    navigate('/teacher/exams');
+  }
+
+  async function handleSaveAndPublish() {
+    const examId = await ensureDraftExists();
+    if (!examId) {
+      return;
+    }
+
+    toast.success('Exam draft created.');
+    setStep(4);
+  }
+
+  async function handlePublishExam() {
+    if (!savedDraftExamId || selectedGroupIds.length === 0) {
+      return;
+    }
+
+    await publishMutation.mutateAsync({ examId: savedDraftExamId, groupIds: selectedGroupIds });
+    toast.success('Exam published successfully.');
+    await queryClient.invalidateQueries({ queryKey: ['teacher', 'exam', savedDraftExamId] });
+    await queryClient.invalidateQueries({ queryKey: ['teacher', 'exams'] });
+    navigate(`/teacher/exams/${savedDraftExamId}`);
+  }
+
+  function handleStepChange(nextStep: number) {
+    if (savedDraftExamId) {
+      if (nextStep === 3 || nextStep === 4) {
+        setStep(nextStep);
+      }
+      return;
+    }
+
+    setStep(nextStep);
   }
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Create exam" eyebrow={`Step ${step} of 3`}>
-        <div className="flex flex-wrap gap-3">{[1, 2, 3].map((item) => <button key={item} type="button" onClick={() => setStep(item)} className={`rounded-full px-4 py-2 text-sm font-semibold ${step === item ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'}`}>Step {item}</button>)}</div>
+      <SectionCard title="Create exam" eyebrow={`Step ${step} of 4`}>
+        <div className="flex flex-wrap gap-3">{[1, 2, 3, 4].map((item) => <button key={item} type="button" onClick={() => handleStepChange(item)} disabled={savedDraftExamId ? item < 3 : item === 4} className={`rounded-full px-4 py-2 text-sm font-semibold ${step === item ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'} disabled:cursor-not-allowed disabled:opacity-60`}>Step {item}</button>)}</div>
       </SectionCard>
       {step === 1 ? (
         <SectionCard title="Exam details" eyebrow="Configuration">
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={form.handleSubmit(() => setStep(2))}>
-            <input {...form.register('title')} placeholder="Exam title" className="rounded-2xl border border-slate-200 px-4 py-3" />
-            <select {...form.register('subjectId')} onChange={(event) => { form.setValue('subjectId', event.target.value); setSubjectFilter(event.target.value); }} className="rounded-2xl border border-slate-200 px-4 py-3">
-              <option value="">Select subject</option>
-              {subjectsQuery.data.items.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
-            </select>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={form.handleSubmit(() => setStep(2), () => toast.error('Please complete the required exam details before continuing.'))}>
+            <label className="space-y-2">
+              <input
+                {...titleField}
+                placeholder="Exam title"
+                className={`w-full rounded-2xl border px-4 py-3 ${errors.title ? 'border-rose-300' : 'border-slate-200'}`}
+              />
+              {errors.title ? <span className="text-sm text-rose-600">{errors.title.message}</span> : null}
+            </label>
+            <label className="space-y-2">
+              <select
+                {...subjectField}
+                onChange={(event) => {
+                  subjectField.onChange(event);
+                  setSubjectFilter(event.target.value);
+                }}
+                className={`w-full rounded-2xl border px-4 py-3 ${errors.subjectId ? 'border-rose-300' : 'border-slate-200'}`}
+              >
+                <option value="">Select subject</option>
+                {subjectsQuery.data.items.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+              </select>
+              {errors.subjectId ? <span className="text-sm text-rose-600">{errors.subjectId.message}</span> : null}
+            </label>
             <input {...form.register('topic')} placeholder="Topic (optional)" className="rounded-2xl border border-slate-200 px-4 py-3" />
-            <input type="number" {...form.register('timeLimitMinutes', { valueAsNumber: true })} placeholder="Time limit in minutes" className="rounded-2xl border border-slate-200 px-4 py-3" />
-            <input type="datetime-local" {...form.register('startTime')} className="rounded-2xl border border-slate-200 px-4 py-3" />
-            <input type="datetime-local" {...form.register('endTime')} className="rounded-2xl border border-slate-200 px-4 py-3" />
+            <label className="space-y-2">
+              <input
+                type="number"
+                {...timeLimitField}
+                min={1}
+                placeholder="Enter exam time limit (minutes)"
+                className={`w-full rounded-2xl border px-4 py-3 ${errors.timeLimitMinutes ? 'border-rose-300' : 'border-slate-200'}`}
+              />
+              {errors.timeLimitMinutes ? <span className="text-sm text-rose-600">{errors.timeLimitMinutes.message}</span> : null}
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-slate-700">Start time</span>
+              <input
+                type="datetime-local"
+                {...startTimeField}
+                ref={(element) => {
+                  startTimeField.ref(element);
+                  startTimeInputRef.current = element;
+                }}
+                placeholder="Select start date and time"
+                title="Select start date and time"
+                aria-label="Select start date and time"
+                onClick={() => openNativeDateTimePicker(startTimeInputRef.current)}
+                onFocus={() => openNativeDateTimePicker(startTimeInputRef.current)}
+                className={`w-full rounded-2xl border px-4 py-3 ${errors.startTime ? 'border-rose-300' : 'border-slate-200'}`}
+              />
+              {errors.startTime ? <span className="text-sm text-rose-600">{errors.startTime.message}</span> : null}
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-slate-700">End time</span>
+              <input
+                type="datetime-local"
+                {...endTimeField}
+                ref={(element) => {
+                  endTimeField.ref(element);
+                  endTimeInputRef.current = element;
+                }}
+                placeholder="Select end date and time"
+                title="Select end date and time"
+                aria-label="Select end date and time"
+                onClick={() => openNativeDateTimePicker(endTimeInputRef.current)}
+                onFocus={() => openNativeDateTimePicker(endTimeInputRef.current)}
+                className={`w-full rounded-2xl border px-4 py-3 ${errors.endTime ? 'border-rose-300' : 'border-slate-200'}`}
+              />
+              {errors.endTime ? <span className="text-sm text-rose-600">{errors.endTime.message}</span> : null}
+            </label>
             <button type="submit" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 lg:col-span-2">Continue to question selection</button>
           </form>
         </SectionCard>
@@ -248,8 +400,30 @@ export function CreateExamPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-600">Title</p><p className="mt-2 text-lg font-semibold text-slate-900">{form.getValues('title')}</p><p className="mt-4 text-sm text-slate-600">Selected questions: {selectedQuestions.length}</p></div>
             <div className="space-y-3">{selectedQuestions.map((question) => <div key={question.id} className="rounded-3xl border border-slate-200 bg-white p-4"><p className="text-sm font-semibold text-slate-900">{question.questionText}</p><p className="mt-1 text-sm text-slate-600">Marks: {selectedQuestionIds[question.id]}</p></div>)}</div>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-              <button type="button" onClick={() => setStep(2)} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700">Back</button>
-              <button type="button" onClick={submitDraft} disabled={createMutation.isPending || selectedQuestions.length === 0} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60">{createMutation.isPending ? 'Saving draft...' : 'Save as draft'}</button>
+              <button type="button" onClick={() => savedDraftExamId ? setStep(3) : setStep(2)} disabled={createMutation.isPending || publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60">Back</button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={handleSaveAndBack} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:opacity-60">{createMutation.isPending ? 'Saving...' : 'Save and back'}</button>
+                <button type="button" onClick={handleSaveAndPublish} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60">{createMutation.isPending ? 'Saving draft...' : 'Save and publish'}</button>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+      ) : null}
+      {step === 4 ? (
+        <SectionCard title="Choose classes and publish" eyebrow="Step 4">
+          <div className="space-y-4">
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-700">Select classes for this exam</p>
+              <div className="space-y-2">
+                {publishGroups.map((group) => {
+                  const checked = selectedGroupIds.includes(group.id);
+                  return <label key={group.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"><input type="checkbox" checked={checked} onChange={() => setSelectedGroupIds((current) => checked ? current.filter((id) => id !== group.id) : [...current, group.id])} />{group.name}</label>;
+                })}
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+              <button type="button" onClick={() => setStep(3)} disabled={publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60">Back</button>
+              <button type="button" onClick={handlePublishExam} disabled={publishMutation.isPending || selectedGroupIds.length === 0 || !savedDraftExamId} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60">{publishMutation.isPending ? 'Publishing...' : 'Publish exam'}</button>
             </div>
           </div>
         </SectionCard>

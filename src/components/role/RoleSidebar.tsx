@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 interface RoleLink {
   to: string;
   label: string;
+  isActiveForPath?: (pathname: string) => boolean;
 }
 
 interface RoleSidebarProps {
@@ -17,6 +18,8 @@ interface RoleSidebarProps {
 }
 
 function SidebarContent({ portalLabel, title, description, links, onNavigate }: { portalLabel: string; title: string; description: string; links: RoleLink[]; onNavigate?: () => void }) {
+  const location = useLocation();
+
   return (
     <div className="flex h-full flex-col gap-6">
       <div className="shrink-0 rounded-3xl bg-white/8 p-4">
@@ -30,12 +33,14 @@ function SidebarContent({ portalLabel, title, description, links, onNavigate }: 
             key={link.to}
             to={link.to}
             onClick={onNavigate}
-            className={({ isActive }) =>
-              `block rounded-2xl px-4 py-3 text-sm font-medium transition ${isActive
+            className={({ isActive }) => {
+              const resolvedActive = link.isActiveForPath ? link.isActiveForPath(location.pathname) : isActive;
+              return `block rounded-2xl px-4 py-3 text-sm font-medium transition ${resolvedActive
                 ? 'bg-white text-white shadow-lg shadow-white/10 dark:bg-slate-100 dark:text-white dark:shadow-white/10'
                 : 'text-slate-200 hover:bg-white/10 hover:text-white'
-              }`
-            }
+                }`;
+            }}
+            end={!link.isActiveForPath}
           >
             {link.label}
           </NavLink>
