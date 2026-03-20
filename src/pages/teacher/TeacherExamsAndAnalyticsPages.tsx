@@ -382,7 +382,20 @@ export function CreateExamPage() {
                         <h2 className={`mt-3 text-base font-semibold ${isSelected ? 'text-slate-50' : 'text-slate-900'}`}>{question.questionText}</h2>
                       </div>
                       <div className="flex items-center gap-3">
-                        <input type="number" min={1} value={selectedQuestionIds[question.id] ?? 1} onChange={(event) => setSelectedQuestionIds((current) => ({ ...current, [question.id]: Number(event.target.value) || 1 }))} className={`w-20 rounded-2xl border px-3 py-2 ${isSelected ? 'border-emerald-300/40 bg-slate-950 text-slate-50' : 'border-slate-200'}`} disabled={!isSelected} />
+                        <input
+                          type="number"
+                          min={0}
+                          value={selectedQuestionIds[question.id] ?? 1}
+                          onChange={(event) => {
+                            const nextValue = Number(event.target.value);
+                            setSelectedQuestionIds((current) => ({
+                              ...current,
+                              [question.id]: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0,
+                            }));
+                          }}
+                          className={`w-20 rounded-2xl border px-3 py-2 ${isSelected ? 'border-emerald-300/40 bg-slate-950 text-slate-50' : 'border-slate-200'}`}
+                          disabled={!isSelected}
+                        />
                         <button type="button" onClick={() => setSelectedQuestionIds((current) => { const next = { ...current }; if (next[question.id]) { delete next[question.id]; } else { next[question.id] = 1; } return next; })} className={`rounded-full px-4 py-2 text-sm font-semibold ${isSelected ? 'bg-slate-950 text-white' : 'border border-slate-300 text-slate-700'}`}>{isSelected ? 'Selected' : 'Add'}</button>
                       </div>
                     </div>
