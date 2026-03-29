@@ -61,7 +61,7 @@ const studentSchema = z.object({
   name: z.string().min(2, 'Enter the student name'),
   email: z.string().email('Enter a valid email'),
   password: z.string().min(8, 'Use at least 8 characters'),
-  groupId: z.string().min(1, 'Select a group'),
+  groupId: z.string().min(1, 'Select a class'),
   rollNumber: z.string().trim().min(1, 'Enter the roll number'),
   parentEmail: z.string().trim().min(1, 'Enter the parent email').email('Enter a valid email'),
   parentPhone: z.string().trim().min(1, 'Enter the parent phone'),
@@ -69,7 +69,7 @@ const studentSchema = z.object({
 });
 
 const groupSchema = z.object({
-  name: z.string().min(2, 'Enter the group name'),
+  name: z.string().min(2, 'Enter the class name'),
   branchId: z.string().min(1, 'Select a branch'),
 });
 
@@ -265,14 +265,14 @@ export function AdminStudentsPage() {
             }}
             className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
           >
-            <option value="">All groups</option>
+            <option value="">All classes</option>
             {groupsQuery.data.items.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
         </div>
       </SectionCard>
 
       {studentsQuery.data.items.length === 0 ? (
-        <EmptyState title="No students found" description="Adjust the search or group filter, or create a student." actionLabel="Add student" actionTo="/admin/students/new" />
+        <EmptyState title="No students found" description="Adjust the search or class filter, or create a student." actionLabel="Add student" actionTo="/admin/students/new" />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
           {studentsQuery.data.items.map((student) => (
@@ -355,7 +355,7 @@ export function AdminCreateStudentPage() {
         <input type="password" {...form.register('password')} placeholder="Temporary password" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
         {form.formState.errors.password ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.password.message}</p> : null}
         <select {...form.register('groupId')} className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100">
-          <option value="">Select group</option>
+          <option value="">Select class</option>
           {groupsQuery.data.items.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
         </select>
         {form.formState.errors.groupId ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.groupId.message}</p> : null}
@@ -487,7 +487,7 @@ export function AdminBulkUploadPage() {
       <SectionCard title="Bulk upload students" eyebrow="CSV import">
         <div className="space-y-4 md:max-w-2xl">
           <div className="rounded-3xl border border-slate-200 bg-slate-50/70 p-5 text-sm leading-7 text-slate-600 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300">
-            Required CSV columns: <span className="font-semibold text-slate-900 dark:text-slate-100">Name, Email, Roll Number, Group, Parent Email, Parent Phone</span>.
+            Required CSV columns: <span className="font-semibold text-slate-900 dark:text-slate-100">Name, Email, Roll Number, Class, Parent Email, Parent Phone</span>.
           </div>
           <input
             type="file"
@@ -527,17 +527,17 @@ export function AdminGroupsPage() {
   const [page, setPage] = useState(1);
   const { data, isLoading, isError } = useAdminGroupsQuery(page, 12);
 
-  if (isLoading) return <LoadingScreen label="Loading groups..." />;
-  if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Group data is unavailable right now.</div>;
+  if (isLoading) return <LoadingScreen label="Loading classes..." />;
+  if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Class data is unavailable right now.</div>;
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Groups" eyebrow="Academic structure" action={<Link to="/admin/groups/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Create group</Link>}>
-        <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">Review the academic groups in your organization, then open a group to assign teachers, add students, and inspect roster performance.</p>
+      <SectionCard title="Classes" eyebrow="Academic structure" action={<Link to="/admin/groups/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Create class</Link>}>
+        <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">Review the academic classes in your organization, then open a class to assign teachers, add students, and inspect roster performance.</p>
       </SectionCard>
 
       {data.items.length === 0 ? (
-        <EmptyState title="No groups found" description="Create the first group to start organizing teachers and students." actionLabel="Create group" actionTo="/admin/groups/new" />
+        <EmptyState title="No classes found" description="Create the first class to start organizing teachers and students." actionLabel="Create class" actionTo="/admin/groups/new" />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
           {data.items.map((group) => (
@@ -567,20 +567,20 @@ export function AdminCreateGroupPage() {
   const mutation = useMutation({
     mutationFn: (values: GroupForm) => createGroup({ name: values.name, branchId: values.branchId }),
     onSuccess: async (group) => {
-      toast.success('Group created.');
+      toast.success('Class created.');
       await queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] });
       navigate(`/admin/groups/${group.id}`);
     },
-    onError: () => toast.error('Unable to create the group right now.'),
+    onError: () => toast.error('Unable to create the class right now.'),
   });
 
-  if (branchesQuery.isLoading) return <LoadingScreen label="Loading group form..." />;
-  if (!user?.organizationId || branchesQuery.isError || !branchesQuery.data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Group form data is unavailable right now.</div>;
+  if (branchesQuery.isLoading) return <LoadingScreen label="Loading class form..." />;
+  if (!user?.organizationId || branchesQuery.isError || !branchesQuery.data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Class form data is unavailable right now.</div>;
 
   return (
-    <SectionCard title="Create group" eyebrow="Academic structure">
+    <SectionCard title="Create class" eyebrow="Academic structure">
       <form className="grid gap-4 md:max-w-2xl" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-        <input {...form.register('name')} placeholder="Group name" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
+        <input {...form.register('name')} placeholder="Class name" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
         {form.formState.errors.name ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.name.message}</p> : null}
         <select {...form.register('branchId')} className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100">
           <option value="">Select branch</option>
@@ -588,7 +588,7 @@ export function AdminCreateGroupPage() {
         </select>
         {form.formState.errors.branchId ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.branchId.message}</p> : null}
         <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-          {mutation.isPending ? 'Creating...' : 'Create group'}
+          {mutation.isPending ? 'Creating...' : 'Create class'}
         </button>
       </form>
     </SectionCard>
@@ -618,20 +618,20 @@ export function AdminGroupDetailPage() {
   const addStudentsMutation = useMutation({
     mutationFn: () => addStudentsToGroup(groupId, selectedStudentIds),
     onSuccess: async () => {
-      toast.success('Students added to the group.');
+      toast.success('Students added to the class.');
       setSelectedStudentIds([]);
       await queryClient.invalidateQueries({ queryKey: ['admin', 'group-students', groupId] });
       await queryClient.invalidateQueries({ queryKey: ['admin', 'students'] });
     },
-    onError: () => toast.error('Unable to add students to the group right now.'),
+    onError: () => toast.error('Unable to add students to the class right now.'),
   });
 
   if (groupQuery.isLoading || studentsQuery.isLoading || teachersQuery.isLoading || unassignedStudentsQuery.isLoading || analyticsQuery.isLoading) {
-    return <LoadingScreen label="Loading group detail..." />;
+    return <LoadingScreen label="Loading class detail..." />;
   }
 
   if (groupQuery.isError || studentsQuery.isError || teachersQuery.isError || unassignedStudentsQuery.isError || analyticsQuery.isError || !groupQuery.data || !studentsQuery.data || !teachersQuery.data || !unassignedStudentsQuery.data || !analyticsQuery.data) {
-    return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Group detail is unavailable right now.</div>;
+    return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Class detail is unavailable right now.</div>;
   }
 
   const currentStudentIds = new Set(studentsQuery.data.items.map((student) => student.id));
@@ -639,19 +639,19 @@ export function AdminGroupDetailPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title={groupQuery.data.name} eyebrow="Group detail">
+      <SectionCard title={groupQuery.data.name} eyebrow="Class detail">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Students" value={studentsQuery.data.items.length} helper="Students currently assigned to this group." accent="emerald" />
+          <StatCard label="Students" value={studentsQuery.data.items.length} helper="Students currently assigned to this class." accent="emerald" />
           <StatCard label="At-risk students" value={analyticsQuery.data.atRiskStudents.length} helper="Students currently below the configured threshold." accent="rose" />
-          <StatCard label="Trend points" value={analyticsQuery.data.examTrend.length} helper="Performance snapshots captured for this group." accent="blue" />
-          <StatCard label="Created" value={formatDateTime(groupQuery.data.createdAt)} helper="Group creation time." accent="slate" />
+          <StatCard label="Trend points" value={analyticsQuery.data.examTrend.length} helper="Performance snapshots captured for this class." accent="blue" />
+          <StatCard label="Created" value={formatDateTime(groupQuery.data.createdAt)} helper="Class creation time." accent="slate" />
         </div>
       </SectionCard>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <SectionCard title="Students in group" eyebrow="Roster">
+        <SectionCard title="Students in class" eyebrow="Roster">
           {studentsQuery.data.items.length === 0 ? (
-            <EmptyState title="No students assigned" description="Add students from the management panel to start tracking progress in this group." />
+            <EmptyState title="No students assigned" description="Add students from the management panel to start tracking progress in this class." />
           ) : (
             <div className="space-y-4">
               {studentsQuery.data.items.map((student) => (
@@ -680,7 +680,7 @@ export function AdminGroupDetailPage() {
           <SectionCard title="Add students" eyebrow="Roster management">
             <div className="space-y-3">
               {availableStudents.length === 0 ? (
-                <EmptyState title="No available students" description="All loaded students are already assigned to this group." />
+                <EmptyState title="No available students" description="All loaded students are already assigned to this class." />
               ) : (
                 <>
                   <div className="max-h-72 space-y-2 overflow-y-auto pr-1">

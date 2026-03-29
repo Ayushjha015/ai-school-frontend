@@ -42,14 +42,14 @@ export function TeacherDashboardPage() {
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="My classes" value={groupsQuery.data?.items.length ?? 0} helper="Groups currently visible to this teacher." accent="emerald" />
+        <StatCard label="My classes" value={groupsQuery.data?.items.length ?? 0} helper="Classes currently visible to this teacher." accent="emerald" />
         <StatCard label="Students" value={studentsQuery.data?.total ?? 0} helper="Students you can manage or review." accent="blue" />
         <StatCard label="Draft exams" value={draftCount} helper="Drafts waiting to be published." accent="amber" />
         <StatCard label="Published exams" value={publishedCount} helper="Exams currently visible to students." accent="emerald" />
       </div>
 
       <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <SectionCard title="My classes" eyebrow="Groups" action={<Link to="/teacher/groups" className="text-sm font-semibold text-slate-700 hover:text-slate-950">View all</Link>}>
+        <SectionCard title="My classes" eyebrow="Classes" action={<Link to="/teacher/groups" className="text-sm font-semibold text-slate-700 hover:text-slate-950">View all</Link>}>
           {groupsQuery.data && groupsQuery.data.items.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
               {groupsQuery.data.items.map((group) => (
@@ -61,7 +61,7 @@ export function TeacherDashboardPage() {
               ))}
             </div>
           ) : (
-            <EmptyState title="No groups yet" description="Assigned classes will appear here once they are linked to your teacher account." />
+            <EmptyState title="No classes yet" description="Assigned classes will appear here once they are linked to your teacher account." />
           )}
         </SectionCard>
 

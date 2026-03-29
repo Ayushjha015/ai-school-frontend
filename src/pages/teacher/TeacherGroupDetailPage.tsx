@@ -24,19 +24,19 @@ export function TeacherGroupDetailPage() {
     <div className="space-y-4 sm:space-y-6">
       <SectionCard
         title={groupQuery.data.name}
-        eyebrow="Group detail"
+        eyebrow="Class detail"
         action={<Link to={`/teacher/analytics/groups/${groupId}`} className="text-sm font-semibold text-slate-700 hover:text-slate-950">View analytics</Link>}
       >
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard label="Students" value={studentsQuery.data.total} helper="Current roster size for this class." accent="emerald" />
           <StatCard label="Created" value={formatDateTime(groupQuery.data.createdAt)} helper="When this class was created." accent="blue" />
-          <StatCard label="Group ID" value={groupQuery.data.id.slice(0, 8)} helper="Quick reference for this class." accent="slate" />
+          <StatCard label="Class ID" value={groupQuery.data.id.slice(0, 8)} helper="Quick reference for this class." accent="slate" />
         </div>
       </SectionCard>
 
       <SectionCard title="Student roster" eyebrow="Class members">
         {studentsQuery.data.items.length === 0 ? (
-          <EmptyState title="No students in this group" description="Students assigned to this class will appear here." />
+          <EmptyState title="No students in this class" description="Students assigned to this class will appear here." />
         ) : (
           <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white">
             <table className="min-w-[640px] divide-y divide-slate-200 text-left text-sm text-slate-700">

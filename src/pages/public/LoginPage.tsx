@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { z } from 'zod';
+import { BrandBadge } from '../../components/branding/BrandBadge';
 import { useAuthStore } from '../../store/authStore';
 import type { ValidationErrorResponse } from '../../types/api';
 import { parseValidationErrors } from '../../utils/parseValidationErrors';
@@ -60,7 +61,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-3 py-4 sm:px-4 sm:py-8">
       <div className="grid w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/70 bg-white/80 shadow-2xl shadow-slate-900/10 backdrop-blur lg:grid-cols-[1.1fr_0.9fr] lg:rounded-[36px]">
         <section className="hidden bg-slate-950 px-6 py-8 text-white sm:px-10 sm:py-10 lg:block lg:px-14 lg:py-16">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">AI School</p>
+          <BrandBadge textClassName="text-emerald-300" />
           <h1 className="mt-6 max-w-lg text-3xl font-semibold leading-tight sm:text-5xl">
             Organization login for a connected academic workspace.
           </h1>
@@ -82,7 +83,7 @@ export function LoginPage() {
         <section className="bg-slate-950 px-4 py-5 text-white sm:px-8 sm:py-9 lg:bg-transparent lg:px-12 lg:py-14 lg:text-inherit">
           <div className="mx-auto max-w-md">
             <div className="mb-5 lg:hidden">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">AI School</p>
+              <BrandBadge textClassName="text-emerald-300" />
               <p className="mt-3 text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Organization access</p>
             </div>
 

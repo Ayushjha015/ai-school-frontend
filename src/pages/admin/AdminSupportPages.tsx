@@ -182,7 +182,7 @@ export function AdminSettingsPage() {
       <SectionCard title="Admin settings" eyebrow="Account overview">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Name" value={user?.name ?? 'Not available'} helper="Your display name for the organization workspace." accent="emerald" />
-          <StatCard label="Role" value={formatRoleLabel(user?.role ?? 'org_admin')} helper="Your current access level in AI School." accent="blue" />
+          <StatCard label="Role" value={formatRoleLabel(user?.role ?? 'org_admin')} helper="Your current access level in Parishkan AI." accent="blue" />
           <StatCard label="Email" value={user?.email ?? 'Not available'} helper="Your primary sign-in email." accent="amber" />
           <StatCard label="Status" value={user?.isActive ? 'Active' : 'Inactive'} helper="Shows whether this account is active." accent={getStatusAccent(user?.isActive ? 'active' : 'inactive')} />
         </div>

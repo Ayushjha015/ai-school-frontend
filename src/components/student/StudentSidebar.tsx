@@ -18,7 +18,7 @@ interface StudentSidebarProps {
 export function StudentSidebar({ mobileOpen = false, onClose, desktopCollapsed = false }: StudentSidebarProps) {
   return (
     <RoleSidebar
-      portalLabel="AI School"
+      portalLabel="Parishkan AI"
       title="Student Hub"
       description="Your exams, results, analytics, and notifications in one place."
       links={links}

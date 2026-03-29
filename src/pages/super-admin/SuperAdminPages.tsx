@@ -58,7 +58,7 @@ export function SuperAdminDashboardPage() {
         action={<Link to="/super-admin/organizations/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Create organization</Link>}
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Organizations" value={data.total} helper="Active organizations currently managed in AI School." accent="emerald" />
+          <StatCard label="Organizations" value={data.total} helper="Active organizations currently managed in Parishkan AI." accent="emerald" />
           <StatCard label="Showing" value={data.items.length} helper="Recent organizations loaded into this overview." accent="blue" />
           <StatCard label="Latest created" value={latestOrganization ? formatDateTime(latestOrganization.createdAt) : 'No data'} helper="Most recent organization creation time." accent="amber" />
           <StatCard label="Latest code" value={latestOrganization?.code ?? 'Not assigned'} helper="Reference code for the newest organization." accent="slate" />
@@ -431,7 +431,7 @@ export function SuperAdminSettingsPage() {
       <SectionCard title="Super admin profile" eyebrow="Account overview">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Name" value={user?.name ?? 'Not available'} helper="Your display name for platform administration." accent="emerald" />
-          <StatCard label="Role" value={formatRoleLabel(user?.role ?? 'super_admin')} helper="Your current access level in AI School." accent="blue" />
+          <StatCard label="Role" value={formatRoleLabel(user?.role ?? 'super_admin')} helper="Your current access level in Parishkan AI." accent="blue" />
           <StatCard label="Email" value={user?.email ?? 'Not available'} helper="Your primary sign-in email." accent="amber" />
           <StatCard label="Status" value={user?.isActive ? 'Active' : 'Inactive'} helper="Shows whether this account is active." accent={getStatusAccent(user?.isActive ? 'active' : 'inactive')} />
         </div>
