@@ -9,7 +9,7 @@ const links = [
   { to: '/admin/teachers', label: 'Teachers' },
   { to: '/admin/students', label: 'Students' },
   { to: '/admin/students/bulk-upload', label: 'Bulk Upload' },
-  { to: '/admin/groups', label: 'Groups' },
+  { to: '/admin/groups', label: 'Classes' },
   { to: '/admin/subjects', label: 'Subjects' },
   { to: '/admin/exams', label: 'Exams' },
   { to: '/admin/analytics', label: 'Analytics' },
@@ -24,9 +24,9 @@ export function AdminLayout() {
   return (
     <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-6 lg:flex-row lg:px-6">
       <RoleSidebar
-        portalLabel="AI School"
+        portalLabel="Parishkan AI"
         title="Org Admin Hub"
-        description="Run teachers, students, groups, subjects, exams, analytics, and notifications for your organization."
+        description="Run teachers, students, classes, subjects, exams, analytics, and notifications for your organization."
         links={links}
         mobileOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}

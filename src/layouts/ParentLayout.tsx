@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { RoleSidebar } from '../components/role/RoleSidebar';
 import { RoleTopbar } from '../components/role/RoleTopbar';
@@ -18,9 +18,9 @@ export function ParentLayout() {
   return (
     <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-6 lg:flex-row lg:px-6">
       <RoleSidebar
-        portalLabel="AI School"
+        portalLabel="Parishkan AI"
         title="Parent Desk"
-        description="Follow each linked child�s exam schedule, results, and progress without changing the student workspace."
+        description="Follow each linked child’s exam schedule, results, and progress without changing the student workspace."
         links={links}
         mobileOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}

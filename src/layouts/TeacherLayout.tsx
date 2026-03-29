@@ -30,7 +30,7 @@ export function TeacherLayout() {
   return (
     <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-6 lg:flex-row lg:px-6">
       <RoleSidebar
-        portalLabel="AI School"
+        portalLabel="Parishkan AI"
         title="Teacher Studio"
         description="Manage classes, question banks, exam publishing, analytics, and student progress from one workspace."
         links={links}

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { BrandBadge } from '../branding/BrandBadge';
 
 interface RoleLink {
   to: string;
@@ -23,7 +24,7 @@ function SidebarContent({ portalLabel, title, description, links, onNavigate }: 
   return (
     <div className="flex h-full flex-col gap-6">
       <div className="shrink-0 rounded-3xl bg-white/8 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200">{portalLabel}</p>
+        <BrandBadge label={portalLabel} />
         <h1 className="mt-3 text-2xl font-semibold">{title}</h1>
         <p className="mt-2 text-sm text-slate-300">{description}</p>
       </div>

@@ -29,7 +29,7 @@ export function TeacherStudentDetailPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Email" value={student.email} helper="Student account email." accent="emerald" />
           <StatCard label="Roll number" value={student.rollNumber || 'Not set'} helper="Student identifier within the class." accent="blue" />
-          <StatCard label="Group ID" value={student.groupId || 'Not assigned'} helper="Current group reference." accent="amber" />
+          <StatCard label="Class ID" value={student.groupId || 'Not assigned'} helper="Current class reference." accent="amber" />
           <StatCard label="Status" value={student.isActive ? 'Active' : 'Inactive'} helper="Current user activity flag." accent={getStatusAccent(student.isActive ? 'active' : 'inactive')} />
         </div>
       </SectionCard>

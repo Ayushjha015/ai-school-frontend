@@ -96,7 +96,7 @@ export function TeacherStudentsPage() {
       <SectionCard title="Students" eyebrow="Teacher-managed students">
         <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Filter by group</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Filter by class</label>
             <select
               value={selectedGroupId}
               onChange={(event) => {
@@ -105,7 +105,7 @@ export function TeacherStudentsPage() {
               }}
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900"
             >
-              <option value="">All groups</option>
+              <option value="">All classes</option>
               {availableGroups.map((group) => (
                 <option key={group.id} value={group.id}>{group.name}</option>
               ))}
@@ -120,7 +120,7 @@ export function TeacherStudentsPage() {
       <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
         <SectionCard title="Student list" eyebrow="Roster">
           {studentsQuery.data.items.length === 0 ? (
-            <EmptyState title="No students found" description="Try a different group filter or create a new student using the form." />
+            <EmptyState title="No students found" description="Try a different class filter or create a new student using the form." />
           ) : (
             <div className="space-y-4">
               {studentsQuery.data.items.map((student) => (
@@ -154,7 +154,7 @@ export function TeacherStudentsPage() {
               <input type="password" {...form.register('password')} placeholder="Temporary password" className="w-full rounded-2xl border border-slate-200 px-4 py-3" />
               {form.formState.errors.password ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.password.message}</p> : null}
               <select {...form.register('groupId')} className="w-full rounded-2xl border border-slate-200 px-4 py-3">
-                <option value="">Select group</option>
+                <option value="">Select class</option>
                 {availableGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
               </select>
               {form.formState.errors.groupId ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.groupId.message}</p> : null}

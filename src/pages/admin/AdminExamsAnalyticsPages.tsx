@@ -62,7 +62,7 @@ export function AdminDashboardPage() {
                 <h2 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">Student count by class</h2>
               </div>
               {dashboardStatsQuery.data.classStrengths.length === 0 ? (
-                <EmptyState title="No class strength data yet" description="Class strength will appear here once groups and students are available." />
+                <EmptyState title="No class strength data yet" description="Class strength will appear here once classes and students are available." />
               ) : (
                 <div className="grid gap-4 xl:grid-cols-2">
                   {dashboardStatsQuery.data.classStrengths.map((group) => (
@@ -115,7 +115,7 @@ export function AdminDashboardPage() {
 
         <SectionCard title="Quick access" eyebrow="Navigation">
           <div className="grid gap-3">
-            <Link to="/admin/groups" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white">Manage groups</Link>
+            <Link to="/admin/groups" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white">Manage classes</Link>
             <Link to="/admin/students" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white">Review students</Link>
             <Link to="/admin/exams" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white">Monitor exams</Link>
           </div>
@@ -243,7 +243,7 @@ export function AdminAnalyticsPage() {
       </SectionCard>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard title="Group analytics" eyebrow="Performance drill-down">
+        <SectionCard title="Class analytics" eyebrow="Performance drill-down">
           <div className="grid gap-3">
             {groupsQuery.data.items.map((group) => (
               <Link key={group.id} to={`/admin/analytics/groups/${group.id}`} className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white">
@@ -271,14 +271,14 @@ export function AdminGroupAnalyticsPage() {
   const { groupId = '' } = useParams();
   const { data, isLoading, isError } = useAdminGroupPerformanceQuery(groupId);
 
-  if (isLoading) return <LoadingScreen label="Loading group analytics..." />;
-  if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Group analytics are unavailable right now.</div>;
+  if (isLoading) return <LoadingScreen label="Loading class analytics..." />;
+  if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Class analytics are unavailable right now.</div>;
 
   return (
     <div className="space-y-6">
-      <SectionCard title={data.groupName} eyebrow="Group analytics">
+      <SectionCard title={data.groupName} eyebrow="Class analytics">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <StatCard label="At-risk threshold" value={data.atRiskThreshold} helper="Configured threshold for group alerts." accent="amber" />
+          <StatCard label="At-risk threshold" value={data.atRiskThreshold} helper="Configured threshold for class alerts." accent="amber" />
           <StatCard label="Trend points" value={data.examTrend.length} helper="Exam snapshots included in this trend view." accent="blue" />
           <StatCard label="At-risk students" value={data.atRiskStudents.length} helper="Students currently below the threshold." accent="rose" />
         </div>
@@ -290,7 +290,7 @@ export function AdminGroupAnalyticsPage() {
         </SectionCard>
         <SectionCard title="At-risk students" eyebrow="Needs attention">
           {data.atRiskStudents.length === 0 ? (
-            <EmptyState title="No at-risk students" description="This group is currently above the configured threshold." />
+            <EmptyState title="No at-risk students" description="This class is currently above the configured threshold." />
           ) : (
             <div className="space-y-4">
               {data.atRiskStudents.map((student) => (
