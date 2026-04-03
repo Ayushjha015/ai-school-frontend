@@ -86,6 +86,22 @@ export interface GroupResponse {
   createdAt: string;
 }
 
+export interface TagResponse {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface QuestionTagResponse {
+  id: string;
+  name: string;
+}
+
+export interface TagListResponse {
+  total: number;
+  items: TagResponse[];
+}
+
 export interface TopicPerformance {
   topic?: string | null;
   correct: number;
@@ -201,6 +217,7 @@ export interface QuestionResponse {
   topic?: string | null;
   difficulty?: string | null;
   options: QuestionOption[];
+  tags: QuestionTagResponse[];
   createdAt: string;
 }
 
@@ -361,6 +378,7 @@ export interface AnswerInput {
 export interface AnswerResult {
   questionId: string;
   questionText: string;
+  tags?: QuestionTagResponse[];
   selectedOptionId?: string | null;
   isCorrect?: boolean | null;
   marksObtained: number;
@@ -615,6 +633,7 @@ export interface GeneratedQuestionPreview {
   topic?: string | null;
   difficulty?: string | null;
   options: QuestionOption[];
+  tags: QuestionTagResponse[];
 }
 
 export interface GenerateQuestionsResponse {

@@ -1,4 +1,4 @@
-import { zodResolver } from '@hookform/resolvers/zod';
+ï»¿import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -9,6 +9,9 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { PaginationControls } from '../../components/common/PaginationControls';
 import { SectionCard } from '../../components/common/SectionCard';
+import { TagBadge } from '../../components/common/TagBadge';
+import { TagSelector } from '../../components/common/TagSelector';
+import { useTagsQuery } from '../../hooks/useTagQueries';
 import { useSubjectsQuery, useTeacherQuestionsQuery } from '../../hooks/useTeacherQueries';
 import type { QuestionResponse } from '../../types/api';
 
@@ -72,8 +75,11 @@ export function TeacherQuestionsPage() {
   const [topicInput, setTopicInput] = useState('');
   const [debouncedTopic, setDebouncedTopic] = useState('');
   const [editingQuestion, setEditingQuestion] = useState<QuestionResponse | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [initialTagIds, setInitialTagIds] = useState<string[]>([]);
   const queryClient = useQueryClient();
   const subjectsQuery = useSubjectsQuery(1, 100);
+  const tagsQuery = useTagsQuery();
   const questionsQuery = useTeacherQuestionsQuery({ subjectId: subjectId || undefined, topic: debouncedTopic || undefined, page, limit: 12 });
   const form = useForm<QuestionForm>({
     resolver: zodResolver(questionSchema),
@@ -91,7 +97,14 @@ export function TeacherQuestionsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: QuestionForm) => {
-      const payload = {
+      const payload: {
+        subjectId: string;
+        questionText: string;
+        topic: string | null;
+        difficulty: string | null;
+        options: Array<{ optionText: string; isCorrect: boolean }>;
+        tagIds?: string[] | null;
+      } = {
         subjectId: values.subjectId,
         questionText: values.questionText,
         topic: values.topic || null,
@@ -99,15 +112,25 @@ export function TeacherQuestionsPage() {
         options: buildOptions(values),
       };
 
+      const normalizedSelectedTagIds = [...selectedTagIds].sort();
+      const normalizedInitialTagIds = [...initialTagIds].sort();
+      const tagsChanged = normalizedSelectedTagIds.join(',') !== normalizedInitialTagIds.join(',');
+
       if (editingQuestion) {
+        if (tagsChanged) {
+          payload.tagIds = selectedTagIds;
+        }
         return updateQuestion(editingQuestion.id, payload);
       }
 
+      payload.tagIds = selectedTagIds.length > 0 ? selectedTagIds : null;
       return createQuestion(payload);
     },
     onSuccess: async () => {
       toast.success(editingQuestion ? 'Question updated.' : 'Question created.');
       setEditingQuestion(null);
+      setSelectedTagIds([]);
+      setInitialTagIds([]);
       form.reset(EMPTY_FORM);
       await queryClient.invalidateQueries({ queryKey: ['teacher', 'questions'] });
     },
@@ -123,13 +146,13 @@ export function TeacherQuestionsPage() {
     onError: () => toast.error('Unable to delete question right now.'),
   });
 
-  const isInitialLoading = subjectsQuery.isLoading || (questionsQuery.isLoading && !questionsQuery.data);
+  const isInitialLoading = subjectsQuery.isLoading || tagsQuery.isLoading || (questionsQuery.isLoading && !questionsQuery.data);
 
   if (isInitialLoading) {
     return <LoadingScreen label="Loading question bank..." />;
   }
 
-  if (subjectsQuery.isError || questionsQuery.isError || !subjectsQuery.data || !questionsQuery.data) {
+  if (subjectsQuery.isError || tagsQuery.isError || questionsQuery.isError || !subjectsQuery.data || !tagsQuery.data || !questionsQuery.data) {
     return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load the question bank.</div>;
   }
 
@@ -158,6 +181,8 @@ export function TeacherQuestionsPage() {
             type="button"
             onClick={() => {
               setEditingQuestion(null);
+              setSelectedTagIds([]);
+              setInitialTagIds([]);
               form.reset(EMPTY_FORM);
             }}
             className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
@@ -166,7 +191,7 @@ export function TeacherQuestionsPage() {
           </button>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 text-sm text-slate-500">
-          <span>{debouncedTopic ? `Showing results for “${debouncedTopic}”` : 'Showing all topics'}</span>
+          <span>{debouncedTopic ? `Showing results for "${debouncedTopic}"` : 'Showing all topics'}</span>
           {questionsQuery.isFetching ? <span className="font-medium text-slate-700">Updating questions...</span> : null}
         </div>
       </SectionCard>
@@ -180,9 +205,14 @@ export function TeacherQuestionsPage() {
               {questionsQuery.data.items.map((question) => (
                 <div key={question.id} className="rounded-3xl border border-slate-200 bg-white p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{question.difficulty || 'unspecified'} {question.topic ? `• ${question.topic}` : ''}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{question.difficulty || 'unspecified'} {question.topic ? `- ${question.topic}` : ''}</p>
                       <h2 className="mt-3 text-base font-semibold text-slate-900">{question.questionText}</h2>
+                      {question.tags.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {question.tags.map((tag) => <TagBadge key={tag.id} tag={tag} compact />)}
+                        </div>
+                      ) : null}
                       <ol className="mt-4 space-y-2 text-sm text-slate-600">
                         {question.options.map((option, index) => (
                           <li key={`${question.id}-${index}`} className={option.isCorrect ? 'font-semibold text-emerald-700' : ''}>{option.optionText}</li>
@@ -194,6 +224,9 @@ export function TeacherQuestionsPage() {
                         type="button"
                         onClick={() => {
                           setEditingQuestion(question);
+                          const questionTagIds = question.tags.map((tag) => tag.id);
+                          setSelectedTagIds(questionTagIds);
+                          setInitialTagIds(questionTagIds);
                           form.reset(questionToForm(question));
                         }}
                         className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
@@ -233,6 +266,11 @@ export function TeacherQuestionsPage() {
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
               </select>
+              <TagSelector
+                tags={tagsQuery.data.items}
+                selectedIds={selectedTagIds}
+                onChange={setSelectedTagIds}
+              />
               <input {...form.register('optionA')} placeholder="Option A" className="w-full rounded-2xl border border-slate-200 px-4 py-3" />
               <input {...form.register('optionB')} placeholder="Option B" className="w-full rounded-2xl border border-slate-200 px-4 py-3" />
               <input {...form.register('optionC')} placeholder="Option C" className="w-full rounded-2xl border border-slate-200 px-4 py-3" />

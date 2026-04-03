@@ -85,6 +85,7 @@ export async function createQuestion(payload: {
   topic?: string | null;
   difficulty?: string | null;
   options: Array<{ optionText: string; isCorrect: boolean }>;
+  tagIds?: string[] | null;
 }) {
   const response = await api.post<QuestionResponse>('/questions', payload);
   return unwrapApiResponse(response);
@@ -95,6 +96,7 @@ export async function updateQuestion(questionId: string, payload: {
   topic?: string | null;
   difficulty?: string | null;
   options?: Array<{ optionText: string; isCorrect: boolean }> | null;
+  tagIds?: string[] | null;
 }) {
   const response = await api.put<QuestionResponse>(`/questions/${questionId}`, payload);
   return unwrapApiResponse(response);
@@ -116,6 +118,7 @@ export async function saveGeneratedQuestions(payload: {
     topic?: string | null;
     difficulty?: string | null;
     options: Array<{ optionText: string; isCorrect: boolean }>;
+    tagIds?: string[] | null;
   }>;
 }) {
   const response = await api.post<SavedQuestionsResponse>('/ai/save-generated-questions', payload);

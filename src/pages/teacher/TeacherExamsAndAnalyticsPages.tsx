@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
+import { TagBadge } from '../../components/common/TagBadge';
 import { TopicBarList } from '../../components/common/TopicBarList';
 import {
   useExamOverviewQuery,
@@ -377,9 +378,14 @@ export function CreateExamPage() {
                 return (
                   <div key={question.id} className={`rounded-3xl border p-5 transition ${isSelected ? 'border-emerald-400/70 bg-slate-900 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]' : 'border-slate-200 bg-white'}`}>
                     <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-200' : 'text-slate-500'}`}>{question.topic || 'Question'}</p>
                         <h2 className={`mt-3 text-base font-semibold ${isSelected ? 'text-slate-50' : 'text-slate-900'}`}>{question.questionText}</h2>
+                        {question.tags.length > 0 ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {question.tags.map((tag) => <TagBadge key={tag.id} tag={tag} compact />)}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-3">
                         <input

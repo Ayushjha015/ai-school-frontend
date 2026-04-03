@@ -3,6 +3,7 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
+import { TagBadge } from '../../components/common/TagBadge';
 import { TopicBarList } from '../../components/common/TopicBarList';
 import { useResultDetailQuery } from '../../hooks/useStudentQueries';
 import { loadAttemptSession } from '../../utils/attemptSession';
@@ -61,7 +62,14 @@ export function ResultDetailPage() {
                 return (
                   <div key={`${answer.questionId}-${index}`} className="rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Question {index + 1}</p>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Question {index + 1}</p>
+                        {answer.tags?.length ? (
+                          <div className="flex flex-wrap gap-2">
+                            {answer.tags.map((tag) => <TagBadge key={`${answer.questionId}-${tag.id}`} tag={tag} compact />)}
+                          </div>
+                        ) : null}
+                      </div>
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${answer.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                         {answer.isCorrect ? 'Correct' : 'Review'}
                       </span>
