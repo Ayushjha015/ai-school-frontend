@@ -25,7 +25,7 @@ export function TeacherGroupDetailPage() {
       <SectionCard
         title={groupQuery.data.name}
         eyebrow="Class detail"
-        action={<Link to={`/teacher/analytics/groups/${groupId}`} className="text-sm font-semibold text-slate-700 hover:text-slate-950">View analytics</Link>}
+        action={<Link to={`/teacher/analytics?group=${groupId}`} className="text-sm font-semibold text-slate-700 hover:text-slate-950">View analytics</Link>}
       >
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard label="Students" value={studentsQuery.data.total} helper="Current roster size for this class." accent="emerald" />

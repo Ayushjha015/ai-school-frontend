@@ -31,8 +31,9 @@ import { StudentProfilePage } from './pages/student/StudentProfilePage';
 import { StudentResultsPage } from './pages/student/StudentResultsPage';
 import { AIGenerateQuestionsPage } from './pages/teacher/AIGenerateQuestionsPage';
 import { CreateQuestionPage } from './pages/teacher/CreateQuestionPage';
+import { TeacherAnalyticsPage, TeacherAnalyticsStudentPage } from './pages/teacher/TeacherAnalyticsPage';
 import { TeacherDashboardPage } from './pages/teacher/TeacherDashboardPage';
-import { CreateExamPage, TeacherExamAnalyticsPage, TeacherExamDetailPage, TeacherExamsPage, TeacherGroupAnalyticsPage } from './pages/teacher/TeacherExamsAndAnalyticsPages';
+import { CreateExamPage, TeacherExamAnalyticsPage, TeacherExamDetailPage, TeacherExamsPage } from './pages/teacher/TeacherExamsAndAnalyticsPages';
 import { TeacherGroupDetailPage } from './pages/teacher/TeacherGroupDetailPage';
 import { TeacherGroupsPage } from './pages/teacher/TeacherGroupsPage';
 import { TeacherNotificationsPage } from './pages/teacher/TeacherNotificationsPage';
@@ -134,7 +135,8 @@ function App() {
         <Route path="exams/new" element={<CreateExamPage />} />
         <Route path="exams/:examId" element={<TeacherExamDetailPage />} />
         <Route path="exams/:examId/analytics" element={<TeacherExamAnalyticsPage />} />
-        <Route path="analytics/groups/:groupId" element={<TeacherGroupAnalyticsPage />} />
+        <Route path="analytics" element={<TeacherAnalyticsPage />} />
+        <Route path="analytics/students/:studentUserId" element={<TeacherAnalyticsStudentPage />} />
         <Route path="notifications" element={<TeacherNotificationsPage />} />
         <Route path="profile" element={<TeacherProfilePage />} />
       </Route>
