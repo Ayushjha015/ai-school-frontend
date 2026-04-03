@@ -40,7 +40,7 @@ import { TeacherProfilePage } from './pages/teacher/TeacherProfilePage';
 import { TeacherQuestionsPage } from './pages/teacher/TeacherQuestionsPage';
 import { TeacherStudentDetailPage } from './pages/teacher/TeacherStudentDetailPage';
 import { TeacherStudentsPage } from './pages/teacher/TeacherStudentsPage';
-import { CreateBranchPage, CreateOrganizationPage, CreateOrgAdminPage, SuperAdminDashboardPage, SuperAdminOrganizationDetailPage, SuperAdminOrganizationsPage, SuperAdminSettingsPage } from './pages/super-admin/SuperAdminPages';
+import { CreateBranchPage, CreateOrganizationPage, CreateOrgAdminPage, SuperAdminDashboardPage, SuperAdminOrganizationDetailPage, SuperAdminOrganizationsPage, SuperAdminSettingsPage, SuperAdminTagsPage } from './pages/super-admin/SuperAdminPages';
 import { useAuthStore } from './store/authStore';
 
 function App() {
@@ -74,6 +74,7 @@ function App() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<SuperAdminDashboardPage />} />
         <Route path="organizations" element={<SuperAdminOrganizationsPage />} />
+        <Route path="tags" element={<SuperAdminTagsPage />} />
         <Route path="organizations/new" element={<CreateOrganizationPage />} />
         <Route path="organizations/:orgId" element={<SuperAdminOrganizationDetailPage />} />
         <Route path="organizations/:orgId/branches/new" element={<CreateBranchPage />} />

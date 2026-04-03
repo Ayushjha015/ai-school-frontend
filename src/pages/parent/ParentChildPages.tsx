@@ -1,8 +1,9 @@
-import { Link, useParams } from 'react-router-dom';
+ï»¿import { Link, useParams } from 'react-router-dom';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
+import { TagBadge } from '../../components/common/TagBadge';
 import { TopicBarList } from '../../components/common/TopicBarList';
 import { useChildExamsQuery, useChildResultDetailQuery, useChildResultsQuery } from '../../hooks/useParentQueries';
 import { formatDateTime, formatPercentage, formatRelativeWindow } from '../../utils/formatters';
@@ -17,7 +18,7 @@ export function ParentChildExamsPage() {
   }
 
   if (isError || !data) {
-    return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load this child’s exams.</div>;
+    return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load this childâ€™s exams.</div>;
   }
 
   const sections = [
@@ -28,7 +29,7 @@ export function ParentChildExamsPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title={`${data.fullName} • Exams`} eyebrow="Child exam status"><p className="text-sm text-slate-600">Grouped into upcoming, completed, and missed exam states for this linked child.</p></SectionCard>
+      <SectionCard title={`${data.fullName} â€¢ Exams`} eyebrow="Child exam status"><p className="text-sm text-slate-600">Grouped into upcoming, completed, and missed exam states for this linked child.</p></SectionCard>
       {sections.map((section) => (
         <SectionCard key={section.title} title={section.title} eyebrow="Exam list">
           {section.items.length === 0 ? (
@@ -61,12 +62,12 @@ export function ParentChildResultsPage() {
   }
 
   if (isError || !data) {
-    return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load this child’s results.</div>;
+    return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load this childâ€™s results.</div>;
   }
 
   return (
     <div className="space-y-6">
-      <SectionCard title={`${data.fullName} • Results`} eyebrow="Child result history">
+      <SectionCard title={`${data.fullName} â€¢ Results`} eyebrow="Child result history">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <StatCard label="Average percentage" value={formatPercentage(data.averagePercentage)} helper="Across all completed exams." accent="emerald" />
           <StatCard label="Total attempts" value={data.totalExamsAttempted} helper="Completed child attempts." accent="blue" />
@@ -81,7 +82,7 @@ export function ParentChildResultsPage() {
             <Link key={result.attemptId} to={`/parent/children/${studentUserId}/results/${result.attemptId}`} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg">
               <h2 className="text-lg font-semibold text-slate-900">{result.examTitle}</h2>
               <p className="mt-2 text-sm text-slate-600">Generated {formatDateTime(result.generatedAt)}</p>
-              <p className="mt-4 text-sm font-semibold text-slate-700">{formatPercentage(result.percentage)} • Score {result.score}</p>
+              <p className="mt-4 text-sm font-semibold text-slate-700">{formatPercentage(result.percentage)} â€¢ Score {result.score}</p>
             </Link>
           ))}
         </div>
@@ -123,8 +124,15 @@ export function ParentChildResultDetailPage() {
             <div className="space-y-4">
               {data.answers.map((answer, index) => (
                 <div key={`${answer.questionId}-${index}`} className="rounded-3xl border border-slate-200 bg-white p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Question {index + 1}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Question {index + 1}</p>
+                      {answer.tags?.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {answer.tags.map((tag) => <TagBadge key={`${answer.questionId}-${tag.id}`} tag={tag} compact />)}
+                        </div>
+                      ) : null}
+                    </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusTone(answer.isCorrect ? 'correct' : 'review')}`}>
                       {answer.isCorrect ? 'Correct' : 'Review'}
                     </span>
@@ -159,7 +167,7 @@ export function ParentChildAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title={`${resultsQuery.data.fullName} • Analytics`} eyebrow="Parent summary view">
+      <SectionCard title={`${resultsQuery.data.fullName} â€¢ Analytics`} eyebrow="Parent summary view">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Average percentage" value={formatPercentage(resultsQuery.data.averagePercentage)} helper="Average across completed exams." accent="emerald" />
           <StatCard label="Completed exams" value={examsQuery.data.completed.length} helper="Completed child exams on record." accent="blue" />
@@ -178,4 +186,3 @@ export function ParentChildAnalyticsPage() {
     </div>
   );
 }
-

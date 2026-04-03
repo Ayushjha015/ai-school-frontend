@@ -262,12 +262,12 @@ export function ExamAttemptPage() {
                   onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: option.id ?? null }))}
                   className={`flex w-full items-start gap-3 rounded-3xl border px-4 py-4 text-left transition ${
                     selected
-                      ? 'border-emerald-400 bg-emerald-50 shadow-sm'
+                      ? 'border-emerald-400/80 bg-slate-900 text-slate-50 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]'
                       : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  <span className={`mt-0.5 h-5 w-5 rounded-full border ${selected ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'}`} />
-                  <span className="text-sm leading-6 text-slate-700">{option.optionText}</span>
+                  <span className={`mt-0.5 h-5 w-5 rounded-full border ${selected ? 'border-emerald-400 bg-emerald-400' : 'border-slate-300'}`} />
+                  <span className={`text-sm leading-6 ${selected ? 'text-slate-100' : 'text-slate-700'}`}>{option.optionText}</span>
                 </button>
               );
             })}
