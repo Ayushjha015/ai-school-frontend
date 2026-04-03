@@ -7,6 +7,7 @@ import { useDesktopSidebar } from '../hooks/useDesktopSidebar';
 const links = [
   { to: '/super-admin/dashboard', label: 'Dashboard' },
   { to: '/super-admin/organizations', label: 'Organizations' },
+  { to: '/super-admin/tags', label: 'Tags' },
   { to: '/super-admin/organizations/new', label: 'Create Organization' },
   { to: '/super-admin/org-admins/new', label: 'Create Org Admin' },
   { to: '/super-admin/settings', label: 'Settings' },

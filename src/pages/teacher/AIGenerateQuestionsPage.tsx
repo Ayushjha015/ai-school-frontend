@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+﻿import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
@@ -6,6 +6,7 @@ import { generateQuestions, saveGeneratedQuestions } from '../../api/teacherServ
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { SectionCard } from '../../components/common/SectionCard';
+import { TagBadge } from '../../components/common/TagBadge';
 import { useSubjectsQuery } from '../../hooks/useTeacherQueries';
 import type { GeneratedQuestionPreview } from '../../types/api';
 
@@ -44,7 +45,17 @@ export function AIGenerateQuestionsPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (payload: { subjectId: string; questions: GeneratedQuestionPreview[] }) => saveGeneratedQuestions(payload),
+    mutationFn: (payload: { subjectId: string; questions: GeneratedQuestionPreview[] }) =>
+      saveGeneratedQuestions({
+        subjectId: payload.subjectId,
+        questions: payload.questions.map((question) => ({
+          questionText: question.questionText,
+          topic: question.topic || null,
+          difficulty: question.difficulty || null,
+          options: question.options,
+          tagIds: question.tags.length > 0 ? question.tags.map((tag) => tag.id) : null,
+        })),
+      }),
     onSuccess: async () => {
       setSavedFingerprint(currentFingerprint);
       toast.success('Selected questions saved to the bank.');
@@ -105,9 +116,17 @@ export function AIGenerateQuestionsPage() {
                     <div>
                       <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${selected ? 'text-emerald-200' : 'text-slate-500'}`}>
                         {question.difficulty || 'generated'}
-                        {question.topic ? ` • ${question.topic}` : ''}
+                        {question.topic ? ` - ${question.topic}` : ''}
                       </p>
                       <h2 className={`mt-3 text-base font-semibold ${selected ? 'text-slate-50' : 'text-slate-900'}`}>{question.questionText}</h2>
+                      <div className="mt-3">
+                        <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${selected ? 'text-slate-400' : 'text-slate-500'}`}>Auto-tagged by AI</p>
+                        {question.tags.length > 0 ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {question.tags.map((tag) => <TagBadge key={`${tag.id}-${index}`} tag={tag} compact />)}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                     <input
                       type="checkbox"

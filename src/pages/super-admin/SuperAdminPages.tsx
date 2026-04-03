@@ -1,11 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { AxiosError } from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { z } from 'zod';
 import { createBranch, createOrgAdmin, createOrganization } from '../../api/adminService';
+import { createTag, deleteTag, updateTag } from '../../api/tagService';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { PaginationControls } from '../../components/common/PaginationControls';
@@ -13,9 +15,12 @@ import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
 import { ThemePreferencesCard } from '../../components/common/ThemePreferencesCard';
 import { useOrganizationBranchesQuery, useOrganizationQuery, useOrganizationsQuery } from '../../hooks/useAdminQueries';
+import { useTagsQuery } from '../../hooks/useTagQueries';
 import { useAuthStore } from '../../store/authStore';
+import type { TagListResponse, TagResponse, ValidationErrorResponse } from '../../types/api';
 import { formatDateTime, formatRoleLabel } from '../../utils/formatters';
 import { getStatusAccent } from '../../utils/statusStyles';
+import { getTagColor } from '../../utils/tagColors';
 
 const organizationSchema = z.object({
   name: z.string().min(2, 'Enter the organization name'),
@@ -40,6 +45,23 @@ const orgAdminSchema = z.object({
 type OrganizationForm = z.infer<typeof organizationSchema>;
 type BranchForm = z.infer<typeof branchSchema>;
 type OrgAdminForm = z.infer<typeof orgAdminSchema>;
+
+const TAG_QUERY_KEY = ['tags', 'list'] as const;
+
+function getTagErrorMessage(error: AxiosError<ValidationErrorResponse>) {
+  const status = error.response?.status;
+  const detail = error.response?.data?.message?.detail?.[0]?.msg;
+
+  if (status === 409) {
+    return 'A tag with this name already exists.';
+  }
+
+  if (status === 422 || status === 400) {
+    return detail ?? 'Tag name cannot be blank.';
+  }
+
+  return 'Unable to save this tag right now.';
+}
 
 export function SuperAdminDashboardPage() {
   const { data, isLoading, isError } = useOrganizationsQuery(1, 8);
@@ -411,6 +433,335 @@ export function CreateOrgAdminPage() {
         </button>
       </form>
     </SectionCard>
+  );
+}
+
+export function SuperAdminTagsPage() {
+  const queryClient = useQueryClient();
+  const tagsQuery = useTagsQuery();
+  const [createName, setCreateName] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [editingError, setEditingError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<TagResponse | null>(null);
+  const [deleteCountdown, setDeleteCountdown] = useState(5);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const updateTagListCache = (updater: (current: TagResponse[]) => TagResponse[]) => {
+    queryClient.setQueryData<TagListResponse | undefined>(TAG_QUERY_KEY, (current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        items: updater(current.items),
+      };
+    });
+  };
+
+  const resetDeleteDialog = () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+
+    if (countdownTimeoutRef.current) {
+      clearTimeout(countdownTimeoutRef.current);
+      countdownTimeoutRef.current = null;
+    }
+
+    setDeleteTarget(null);
+    setDeleteCountdown(5);
+  };
+
+  useEffect(() => () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+    if (countdownTimeoutRef.current) {
+      clearTimeout(countdownTimeoutRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    setDeleteCountdown(5);
+    countdownIntervalRef.current = setInterval(() => {
+      setDeleteCountdown((current) => (current > 1 ? current - 1 : 1));
+    }, 1000);
+    countdownTimeoutRef.current = setTimeout(() => {
+      resetDeleteDialog();
+    }, 5000);
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      if (countdownTimeoutRef.current) {
+        clearTimeout(countdownTimeoutRef.current);
+        countdownTimeoutRef.current = null;
+      }
+    };
+  }, [deleteTarget]);
+
+  const createMutation = useMutation({
+    mutationFn: createTag,
+    onSuccess: async (createdTag) => {
+      setCreateName('');
+      setCreateError('');
+      updateTagListCache((current) => [...current, createdTag]);
+      await queryClient.invalidateQueries({ queryKey: TAG_QUERY_KEY });
+    },
+    onError: (error: AxiosError<ValidationErrorResponse>) => {
+      setCreateError(getTagErrorMessage(error));
+    },
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ tagId, name }: { tagId: string; name: string }) => updateTag(tagId, { name }),
+    onSuccess: async (updatedTag) => {
+      updateTagListCache((current) =>
+        current.map((tag) => (tag.id === updatedTag.id ? updatedTag : tag)),
+      );
+      setEditingTagId(null);
+      setEditingName('');
+      setEditingError('');
+      await queryClient.invalidateQueries({ queryKey: TAG_QUERY_KEY });
+    },
+    onError: (error: AxiosError<ValidationErrorResponse>) => {
+      setEditingError(getTagErrorMessage(error));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteTag,
+    onSuccess: async (_, tagId) => {
+      updateTagListCache((current) => current.filter((tag) => tag.id !== tagId));
+      resetDeleteDialog();
+      toast.success('Tag deleted.');
+      await queryClient.invalidateQueries({ queryKey: TAG_QUERY_KEY });
+    },
+    onError: () => {
+      toast.error('Unable to delete this tag right now.');
+      resetDeleteDialog();
+    },
+  });
+
+  const startEditing = (tag: TagResponse) => {
+    setEditingTagId(tag.id);
+    setEditingName(tag.name);
+    setEditingError('');
+  };
+
+  const cancelEditing = () => {
+    setEditingTagId(null);
+    setEditingName('');
+    setEditingError('');
+  };
+
+  const submitCreate = () => {
+    const name = createName.trim();
+    if (!name) {
+      setCreateError('Tag name cannot be blank.');
+      return;
+    }
+
+    setCreateError('');
+    createMutation.mutate({ name });
+  };
+
+  const submitRename = () => {
+    if (!editingTagId) {
+      return;
+    }
+
+    const name = editingName.trim();
+    if (!name) {
+      setEditingError('Tag name cannot be blank.');
+      return;
+    }
+
+    setEditingError('');
+    renameMutation.mutate({ tagId: editingTagId, name });
+  };
+
+  if (tagsQuery.isLoading) {
+    return <LoadingScreen label="Loading tags..." />;
+  }
+
+  if (tagsQuery.isError || !tagsQuery.data) {
+    return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Tag management is unavailable right now.</div>;
+  }
+
+  return (
+    <>
+      <SectionCard title="Tags" eyebrow="Global tag library">
+        <div className="space-y-6">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <div>
+              <input
+                value={createName}
+                onChange={(event) => {
+                  setCreateName(event.target.value);
+                  if (createError) {
+                    setCreateError('');
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submitCreate();
+                  }
+                }}
+                placeholder="Create a new tag"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
+              />
+              {createError ? <p className="mt-2 text-sm text-rose-500">{createError}</p> : null}
+            </div>
+            <button
+              type="button"
+              onClick={submitCreate}
+              disabled={createMutation.isPending}
+              className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400"
+            >
+              {createMutation.isPending ? 'Adding...' : 'Add tag'}
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Available tags</p>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Click a tag to rename it. Hover to reveal the delete action.</p>
+            </div>
+            <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600 dark:border-slate-700 dark:text-slate-300">
+              {tagsQuery.data.total} tags
+            </span>
+          </div>
+
+          {tagsQuery.data.items.length === 0 ? (
+            <EmptyState title="No tags yet" description="Create your first tag to start organizing tagged questions across the platform." />
+          ) : (
+            <div className="max-h-[28rem] overflow-y-auto rounded-3xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+              <div className="flex flex-wrap gap-3">
+                {tagsQuery.data.items.map((tag) => {
+                  const colors = getTagColor(tag.name);
+                  const isEditing = editingTagId === tag.id;
+                  return (
+                    <div key={tag.id} className="space-y-2">
+                      {isEditing ? (
+                        <div className="rounded-2xl border border-emerald-400/70 bg-white p-3 shadow-sm dark:bg-slate-950">
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={editingName}
+                              onChange={(event) => {
+                                setEditingName(event.target.value);
+                                if (editingError) {
+                                  setEditingError('');
+                                }
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  submitRename();
+                                }
+                                if (event.key === 'Escape') {
+                                  event.preventDefault();
+                                  cancelEditing();
+                                }
+                              }}
+                              autoFocus
+                              className="min-w-[10rem] rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                            />
+                            <button
+                              type="button"
+                              onClick={submitRename}
+                              disabled={renameMutation.isPending}
+                              className="rounded-full border border-emerald-400/60 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditing}
+                              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          {editingError ? <p className="mt-2 text-sm text-rose-500">{editingError}</p> : null}
+                        </div>
+                      ) : (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => startEditing(tag)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              startEditing(tag);
+                            }
+                          }}
+                          className="group inline-flex items-center gap-3 rounded-full border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+                          style={{ backgroundColor: colors.bg, color: colors.text, borderColor: `${colors.text}33` }}
+                        >
+                          <span>{tag.name}</span>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setDeleteTarget(tag);
+                            }}
+                            className="rounded-full border border-current/20 px-2 py-0.5 text-[11px] font-semibold opacity-0 transition group-hover:opacity-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </SectionCard>
+
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-950">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Delete tag</p>
+            <h2 className="mt-3 text-xl font-semibold text-slate-900 dark:text-slate-100">{deleteTarget.name}</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              This action cannot be undone. Confirm within {deleteCountdown} seconds to permanently remove this tag.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={resetDeleteDialog}
+                className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteMutation.mutate(deleteTarget.id)}
+                disabled={deleteMutation.isPending}
+                className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:opacity-60"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : `Delete now (${deleteCountdown})`}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
