@@ -19,6 +19,11 @@ const links = [
     isActiveForPath: (pathname: string) => pathname === '/teacher/questions/ai-generate',
   },
   { to: '/teacher/exams', label: 'Exams' },
+  {
+    to: '/teacher/analytics',
+    label: 'Analytics',
+    isActiveForPath: (pathname: string) => pathname === '/teacher/analytics' || pathname.startsWith('/teacher/analytics/students/'),
+  },
   { to: '/teacher/notifications', label: 'Notifications' },
   { to: '/teacher/profile', label: 'Profile' },
 ];

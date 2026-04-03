@@ -109,6 +109,106 @@ export interface TopicPerformance {
   accuracy: number;
 }
 
+export interface CompletionRateResponse {
+  totalAssigned: number;
+  totalCompleted: number;
+  completionRate: number;
+}
+
+export interface AvgScoreResponse {
+  avgPercentage: number;
+  totalExamsAttempted: number;
+}
+
+export interface ProgressionPoint {
+  examId: string;
+  examTitle: string;
+  percentage: number;
+  submittedAt: string | null;
+}
+
+export interface ProgressionResponse {
+  points: ProgressionPoint[];
+}
+
+export interface StudentSubjectMastery {
+  subjectId: string;
+  subjectName: string;
+  avgPercentage: number;
+  masteryLevel: 'Star' | 'Achiever' | 'Learner';
+}
+
+export interface StudentHeatmapResponse {
+  subjectMasteries: StudentSubjectMastery[];
+}
+
+export interface ClassHeatmapRow {
+  masteryLevel: 'Learner' | 'Achiever' | 'Star';
+  cells: number[];
+}
+
+export interface ClassHeatmapResponse {
+  subjects: string[];
+  rows: ClassHeatmapRow[];
+}
+
+export interface TopPerformerEntry {
+  rank: number;
+  studentId: string;
+  studentUserId: string;
+  studentName: string;
+  avgPercentage: number;
+}
+
+export interface TopPerformersResponse {
+  entries: TopPerformerEntry[];
+}
+
+export interface DetailedTableRow {
+  studentId: string;
+  studentUserId: string;
+  studentName: string;
+  groupName: string;
+  avgPercentage: number;
+  completionRate: number;
+  masteryLevel: 'Star' | 'Achiever' | 'Learner';
+}
+
+export interface DetailedTableResponse {
+  rows: DetailedTableRow[];
+}
+
+export interface AssignedGroupSummary {
+  groupId: string;
+  groupName: string;
+  studentCount: number;
+}
+
+export interface StudentInGroupSummary {
+  studentUserId: string;
+  studentName: string;
+}
+
+export interface TeacherClassDashboardResponse {
+  groupId: string;
+  groupName: string;
+  completionRate: CompletionRateResponse;
+  avgScore: AvgScoreResponse;
+  topPerformers: TopPerformersResponse;
+  heatmap: ClassHeatmapResponse;
+  performanceTable: DetailedTableResponse;
+}
+
+export interface TeacherStudentDashboardResponse {
+  studentUserId: string;
+  studentName: string;
+  completionRate: CompletionRateResponse;
+  avgScore: AvgScoreResponse;
+  progression: ProgressionResponse;
+  heatmap: StudentHeatmapResponse;
+  performanceTable: StudentExamResult[];
+}
+
 export interface QuestionResponse {
   id: string;
   subjectId: string;

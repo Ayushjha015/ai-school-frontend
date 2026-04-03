@@ -1,5 +1,8 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
+  getAssignedTeacherAnalyticsGroups,
+  getTeacherAnalyticsGroupStudents,
+  getTeacherClassDashboard,
   getExamOverview,
   getGroupPerformance,
   getQuestions,
@@ -10,6 +13,7 @@ import {
   getTeacherGroup,
   getTeacherGroups,
   getTeacherGroupStudents,
+  getTeacherStudentDashboard,
   getTeacherStudent,
   getTeacherStudentResults,
   getTeacherStudents,
@@ -113,5 +117,36 @@ export function useGroupPerformanceQuery(groupId: string) {
     queryKey: ['teacher', 'group-performance', groupId],
     queryFn: () => getGroupPerformance(groupId),
     enabled: Boolean(groupId),
+  });
+}
+
+export function useAssignedTeacherAnalyticsGroupsQuery() {
+  return useQuery({
+    queryKey: ['teacher', 'analytics', 'groups'],
+    queryFn: getAssignedTeacherAnalyticsGroups,
+  });
+}
+
+export function useTeacherAnalyticsGroupStudentsQuery(groupId: string) {
+  return useQuery({
+    queryKey: ['teacher', 'analytics', 'group-students', groupId],
+    queryFn: () => getTeacherAnalyticsGroupStudents(groupId),
+    enabled: Boolean(groupId),
+  });
+}
+
+export function useTeacherClassDashboardQuery(groupId: string, filters: { from?: string; to?: string; limit?: number }) {
+  return useQuery({
+    queryKey: ['teacher', 'analytics', 'class-dashboard', groupId, filters.from ?? 'all', filters.to ?? 'all', filters.limit ?? 5],
+    queryFn: () => getTeacherClassDashboard(groupId, filters),
+    enabled: Boolean(groupId),
+  });
+}
+
+export function useTeacherStudentDashboardQuery(studentUserId: string, filters: { from?: string; to?: string }) {
+  return useQuery({
+    queryKey: ['teacher', 'analytics', 'student-dashboard', studentUserId, filters.from ?? 'all', filters.to ?? 'all'],
+    queryFn: () => getTeacherStudentDashboard(studentUserId, filters),
+    enabled: Boolean(studentUserId),
   });
 }

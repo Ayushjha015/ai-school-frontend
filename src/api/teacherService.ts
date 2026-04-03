@@ -1,6 +1,7 @@
 import type {
   CreateExamRequest,
   CreateStudentRequest,
+  AssignedGroupSummary,
   ExamLeaderboardResponse,
   ExamOverviewResponse,
   ExamResponse,
@@ -11,9 +12,12 @@ import type {
   PaginatedResponse,
   QuestionResponse,
   SavedQuestionsResponse,
+  StudentInGroupSummary,
   StudentResponse,
   SubjectResponse,
+  TeacherClassDashboardResponse,
   TeacherExamListItem,
+  TeacherStudentDashboardResponse,
   UserResponse,
 } from '../types/api';
 import { api } from './baseClient';
@@ -169,6 +173,37 @@ export async function getTeacherExamLeaderboard(examId: string) {
 
 export async function getGroupPerformance(groupId: string) {
   const response = await api.get<GroupPerformanceResponse>(`/analytics/groups/${groupId}/performance`);
+  return unwrapApiResponse(response);
+}
+
+export async function getAssignedTeacherAnalyticsGroups() {
+  const response = await api.get<AssignedGroupSummary[]>('/analytics/teacher/groups');
+  return unwrapApiResponse(response);
+}
+
+export async function getTeacherAnalyticsGroupStudents(groupId: string) {
+  const response = await api.get<StudentInGroupSummary[]>(`/analytics/teacher/groups/${groupId}/students`);
+  return unwrapApiResponse(response);
+}
+
+export async function getTeacherClassDashboard(groupId: string, filters?: { from?: string; to?: string; limit?: number }) {
+  const response = await api.get<TeacherClassDashboardResponse>(`/analytics/teacher/groups/${groupId}/dashboard`, {
+    params: {
+      from: filters?.from || undefined,
+      to: filters?.to || undefined,
+      limit: filters?.limit || undefined,
+    },
+  });
+  return unwrapApiResponse(response);
+}
+
+export async function getTeacherStudentDashboard(studentUserId: string, filters?: { from?: string; to?: string }) {
+  const response = await api.get<TeacherStudentDashboardResponse>(`/analytics/teacher/students/${studentUserId}/dashboard`, {
+    params: {
+      from: filters?.from || undefined,
+      to: filters?.to || undefined,
+    },
+  });
   return unwrapApiResponse(response);
 }
 
