@@ -2,6 +2,7 @@ import type { AxiosError } from 'axios';
 import { useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Area, Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { AnalyticsHeatmap } from '../../components/common/AnalyticsHeatmap';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { SectionCard } from '../../components/common/SectionCard';
@@ -12,7 +13,6 @@ import {
   useTeacherStudentDashboardQuery,
 } from '../../hooks/useTeacherQueries';
 import type {
-  ClassHeatmapRow,
   DetailedTableRow,
   StudentExamResult,
   StudentSubjectMastery,
@@ -102,14 +102,6 @@ function getCompletionColor(rate: number) {
     return 'bg-amber-400';
   }
   return 'bg-rose-500';
-}
-
-function getHeatmapCellTone(level: ClassHeatmapRow['masteryLevel']) {
-  return {
-    Learner: 'bg-slate-100 text-slate-500',
-    Achiever: 'bg-blue-100 text-blue-700',
-    Star: 'bg-amber-100 text-amber-800',
-  }[level];
 }
 
 function DateRangeControls() {
@@ -272,38 +264,27 @@ function AverageScoreCard({ avgPercentage, totalExamsAttempted }: { avgPercentag
   );
 }
 
-function HeatmapCard({ subjects, rows }: { subjects: string[]; rows: ClassHeatmapRow[] }) {
+function HeatmapCard({
+  subjects,
+  rows,
+}: {
+  subjects: string[];
+  rows: Array<{ masteryLevel: 'Learner' | 'Achiever' | 'Star'; cells: number[] }>;
+}) {
   return (
     <SectionCard title="Academic standards heatmap" eyebrow="Subject mastery counts">
       {subjects.length === 0 ? (
         <EmptyState title="No subjects available" description="No subjects with active exams found for this class." />
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white">
-          <table className="min-w-[640px] divide-y divide-slate-200 text-left text-sm text-slate-700">
-            <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-              <tr>
-                <th className="px-4 py-4">Mastery</th>
-                {subjects.map((subject) => (
-                  <th key={subject} className="px-4 py-4">{subject}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
-                <tr key={row.masteryLevel}>
-                  <td className="px-4 py-4"><MasteryBadge level={row.masteryLevel} /></td>
-                  {row.cells.map((count, index) => (
-                    <td key={`${row.masteryLevel}-${subjects[index]}`} className="px-4 py-4">
-                      <div className={`flex min-h-12 min-w-16 items-center justify-center rounded-2xl font-semibold ${getHeatmapCellTone(row.masteryLevel)}`}>
-                        {count > 0 ? count : <span className="text-slate-300">—</span>}
-                      </div>
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AnalyticsHeatmap
+          xLabels={subjects}
+          yLabels={rows.map((row) => row.masteryLevel)}
+          rows={rows.map((row) => ({ label: row.masteryLevel, values: row.cells }))}
+          tooltipFormatter={(cell) => ({
+            title: `${cell.yLabel} • ${cell.xLabel}`,
+            description: `${cell.value} students are at ${cell.yLabel} level in ${cell.xLabel}.`,
+          })}
+        />
       )}
     </SectionCard>
   );
