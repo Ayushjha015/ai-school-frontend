@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getExamLeaderboard, getResultDetail, getStudentExamDetails, getStudentExams, getStudentResults, getStudentSummary } from '../api/studentService';
+import { getExamLeaderboard, getResultDetail, getStudentDashboard, getStudentExamDetails, getStudentExams, getStudentResults, getStudentSummary } from '../api/studentService';
 
 export function useStudentExamsQuery() {
   return useQuery({
@@ -22,6 +22,13 @@ export function useStudentSummaryQuery(studentUserId?: string) {
     queryKey: ['student', 'summary', studentUserId],
     queryFn: () => getStudentSummary(studentUserId!),
     enabled: Boolean(studentUserId),
+  });
+}
+
+export function useStudentDashboardQuery(filters?: { from?: string; to?: string }) {
+  return useQuery({
+    queryKey: ['student', 'analytics', filters?.from ?? 'all', filters?.to ?? 'all'],
+    queryFn: () => getStudentDashboard(filters),
   });
 }
 

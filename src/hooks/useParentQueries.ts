@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  getAnalyticsChildren,
   getChildExams,
+  getParentChildDashboard,
   getChildResultDetail,
   getChildResults,
   getLinkedChildren,
@@ -10,6 +12,21 @@ export function useLinkedChildrenQuery() {
   return useQuery({
     queryKey: ['parent', 'children'],
     queryFn: getLinkedChildren,
+  });
+}
+
+export function useParentAnalyticsChildrenQuery() {
+  return useQuery({
+    queryKey: ['parent', 'analytics', 'children'],
+    queryFn: getAnalyticsChildren,
+  });
+}
+
+export function useParentChildDashboardQuery(studentUserId: string, filters?: { from?: string; to?: string }) {
+  return useQuery({
+    queryKey: ['parent', 'analytics', 'child-dashboard', studentUserId, filters?.from ?? 'all', filters?.to ?? 'all'],
+    queryFn: () => getParentChildDashboard(studentUserId, filters),
+    enabled: Boolean(studentUserId),
   });
 }
 

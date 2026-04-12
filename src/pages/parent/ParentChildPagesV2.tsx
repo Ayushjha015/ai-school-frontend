@@ -1,12 +1,13 @@
 import type { AxiosError } from 'axios';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../../components/common/EmptyState';
 import { SectionCard } from '../../components/common/SectionCard';
-import { useStudentDashboardQuery } from '../../hooks/useStudentQueries';
-import type { ProgressionPoint, StudentExamResult, StudentSubjectMastery, TopicPerformance, ValidationErrorResponse } from '../../types/api';
+import { useParentAnalyticsChildrenQuery, useParentChildDashboardQuery } from '../../hooks/useParentQueries';
+import type { LinkedChildSummary, ProgressionPoint, StudentExamResult, StudentSubjectMastery, TopicPerformance, ValidationErrorResponse } from '../../types/api';
 import { formatDateTime, formatPercentage } from '../../utils/formatters';
+export { ParentChildExamsPage, ParentChildResultDetailPage, ParentChildResultsPage } from './ParentChildPages';
 
 function buildNextSearchParams(
   current: URLSearchParams,
@@ -119,7 +120,7 @@ function getProgressionBarColor(rate: number) {
   return '#9CA3AF';
 }
 
-function AnalyticsDateRangeControls() {
+function ParentAnalyticsDateRangeControls() {
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get('from') ?? '';
   const to = searchParams.get('to') ?? '';
@@ -210,7 +211,7 @@ function CompletionRateCard({
   if (totalAssigned === 0) {
     return (
       <SectionCard title="Completion Rate" eyebrow="Assigned exams">
-        <EmptyState title="No exams assigned" description="No exams assigned to your class yet." />
+        <EmptyState title="No exams assigned" description="No exams assigned to your child's class yet." />
       </SectionCard>
     );
   }
@@ -256,15 +257,15 @@ function AverageScoreCard({ avgPercentage, totalExamsAttempted }: { avgPercentag
   );
 }
 
-function RankCard({ myRank, classSize }: { myRank: number | null; classSize: number }) {
+function RankCard({ rankInClass, classSize }: { rankInClass: number | null; classSize: number }) {
   return (
     <SectionCard title="Rank in Class" eyebrow="Current standing">
       <div className="space-y-4">
         <p className="text-4xl font-bold text-slate-900">
-          {myRank === null ? '—' : myRank === 1 ? '👑 #1' : `#${myRank}`}
+          {rankInClass === null ? '—' : rankInClass === 1 ? '👑 #1' : `#${rankInClass}`}
         </p>
         <p className="text-sm text-slate-600">
-          {myRank === null ? 'Complete an exam to get ranked' : `Out of ${classSize} students`}
+          {rankInClass === null ? 'No exam results yet' : `Out of ${classSize} students`}
         </p>
       </div>
     </SectionCard>
@@ -273,10 +274,10 @@ function RankCard({ myRank, classSize }: { myRank: number | null; classSize: num
 
 function ClassSizeCard({ classSize }: { classSize: number }) {
   return (
-    <SectionCard title="Class Size" eyebrow="Your cohort">
+    <SectionCard title="Class Size" eyebrow="Cohort">
       <div className="space-y-4">
         <p className="text-4xl font-bold text-slate-900">{classSize}</p>
-        <p className="text-sm text-slate-600">Students in your class</p>
+        <p className="text-sm text-slate-600">Students in this class</p>
       </div>
     </SectionCard>
   );
@@ -402,7 +403,7 @@ function ExamHistoryTable({ items }: { items: StudentExamResult[] }) {
 
   if (items.length === 0) {
     return (
-      <SectionCard title="My Exam History" eyebrow="Detailed results">
+      <SectionCard title="Exam History" eyebrow="Detailed results">
         <EmptyState title="No exam history" description="You haven't completed any exams yet." />
       </SectionCard>
     );
@@ -412,7 +413,7 @@ function ExamHistoryTable({ items }: { items: StudentExamResult[] }) {
 
   return (
     <SectionCard
-      title="My Exam History"
+      title="Exam History"
       eyebrow="Detailed results"
       action={!showAll && items.length > 10 ? (
         <button
@@ -443,7 +444,7 @@ function ExamHistoryTable({ items }: { items: StudentExamResult[] }) {
                 <Fragment key={item.examId}>
                   <tr
                     className="cursor-pointer transition hover:bg-slate-50"
-                    onClick={() => setOpenExamId((current) => current === item.examId ? null : item.examId)}
+                    onClick={() => setOpenExamId((current) => (current === item.examId ? null : item.examId))}
                   >
                     <td className="px-4 py-4 font-semibold text-slate-900" title={item.examTitle}>
                       {truncateLabel(item.examTitle, 30)}
@@ -481,7 +482,57 @@ function ExamHistoryTable({ items }: { items: StudentExamResult[] }) {
   );
 }
 
-export function StudentAnalyticsPage() {
+function ChildSelector({
+  children,
+  selectedStudentUserId,
+}: {
+  children: LinkedChildSummary[];
+  selectedStudentUserId: string;
+}) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  if (children.length <= 1) {
+    return null;
+  }
+
+  if (children.length <= 4) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {children.map((child) => {
+          const active = child.studentUserId === selectedStudentUserId;
+          return (
+            <button
+              key={child.studentUserId}
+              type="button"
+              onClick={() => navigate(`/parent/children/${child.studentUserId}/analytics?${searchParams.toString()}`)}
+              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${active ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-slate-950'}`}
+            >
+              {child.studentName}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={selectedStudentUserId}
+      onChange={(event) => navigate(`/parent/children/${event.target.value}/analytics?${searchParams.toString()}`)}
+      className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-700"
+    >
+      {children.map((child) => (
+        <option key={child.studentUserId} value={child.studentUserId}>
+          {child.studentName}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+export function ParentChildAnalyticsPage() {
+  const { studentUserId = '' } = useParams();
   const [searchParams] = useSearchParams();
   const from = searchParams.get('from') ?? '';
   const to = searchParams.get('to') ?? '';
@@ -494,37 +545,59 @@ export function StudentAnalyticsPage() {
     [from, to],
   );
 
-  const dashboardQuery = useStudentDashboardQuery(filters);
+  const childrenQuery = useParentAnalyticsChildrenQuery();
+  const dashboardQuery = useParentChildDashboardQuery(studentUserId, filters);
 
   useEffect(() => {
     const statusCode = (dashboardQuery.error as AxiosError<ValidationErrorResponse> | null)?.response?.status;
-    if (statusCode === 401 || statusCode === 403) {
+    if (statusCode === 401) {
       window.location.assign('/login');
     }
   }, [dashboardQuery.error]);
 
-  const statusCode = (dashboardQuery.error as AxiosError<ValidationErrorResponse> | null)?.response?.status;
-
-  if (dashboardQuery.isLoading) {
+  if (childrenQuery.isLoading || dashboardQuery.isLoading) {
     return <AnalyticsSkeleton />;
   }
 
+  const linkedChildren = childrenQuery.data ?? [];
+  const selectedChild = linkedChildren.find((child) => child.studentUserId === studentUserId) ?? null;
+  const statusCode = (dashboardQuery.error as AxiosError<ValidationErrorResponse> | null)?.response?.status;
+
   if (statusCode === 404) {
     return (
-      <SectionCard title="My Analytics" eyebrow="Student analytics">
+      <SectionCard title="Child Analytics" eyebrow="Parent view">
         <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-rose-700">
-          Student profile not found. Contact your administrator.
+          Child not found.
+          <Link to="/parent/children" className="ml-3 font-semibold underline">
+            Back to My Children
+          </Link>
         </div>
       </SectionCard>
     );
   }
 
-  if (dashboardQuery.isError || !dashboardQuery.data) {
+  if (statusCode === 403) {
+    return (
+      <SectionCard title="Child Analytics" eyebrow="Parent view">
+        <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-rose-700">
+          This child is not linked to your account.
+          <Link to="/parent/children" className="ml-3 font-semibold underline">
+            Back to My Children
+          </Link>
+        </div>
+      </SectionCard>
+    );
+  }
+
+  if (childrenQuery.isError || dashboardQuery.isError || !dashboardQuery.data) {
     return (
       <DashboardShellError
-        title="My Analytics"
-        description="Failed to load your analytics dashboard right now."
-        onRetry={() => dashboardQuery.refetch()}
+        title="Child Analytics"
+        description="Failed to load this child's analytics dashboard right now."
+        onRetry={() => {
+          void childrenQuery.refetch();
+          void dashboardQuery.refetch();
+        }}
       />
     );
   }
@@ -533,24 +606,31 @@ export function StudentAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="My Analytics" eyebrow="Student analytics dashboard">
+      <SectionCard title="Child Analytics" eyebrow="Parent dashboard">
         <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-3">
-            <p className="max-w-2xl text-sm leading-7 text-slate-600">
-              Track your completion, score trend, subject mastery, and exam-by-exam performance across the selected time range.
-            </p>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {from || to ? `${formatFilterDate(from)} to ${formatFilterDate(to)}` : 'All-time analytics'}
-            </p>
+          <div className="space-y-4">
+            <Link to="/parent/children" className="inline-flex rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950">
+              ← My Children
+            </Link>
+            <ChildSelector children={linkedChildren} selectedStudentUserId={studentUserId} />
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold text-slate-900">{dashboard.studentName}</h2>
+              <p className={`text-sm ${selectedChild?.groupName ? 'text-slate-600' : 'text-slate-400'}`}>
+                {selectedChild?.groupName ?? 'Class not assigned'}
+              </p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {from || to ? `${formatFilterDate(from)} to ${formatFilterDate(to)}` : 'All-time analytics'}
+              </p>
+            </div>
           </div>
-          <AnalyticsDateRangeControls />
+          <ParentAnalyticsDateRangeControls />
         </div>
       </SectionCard>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <CompletionRateCard {...dashboard.completionRate} />
         <AverageScoreCard {...dashboard.avgScore} />
-        <RankCard myRank={dashboard.myRank} classSize={dashboard.classSize} />
+        <RankCard rankInClass={dashboard.rankInClass} classSize={dashboard.classSize} />
         <ClassSizeCard classSize={dashboard.classSize} />
       </div>
 

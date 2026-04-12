@@ -7,6 +7,7 @@ import type {
   ResultSummary,
   StudentExamDetails,
   StudentExamListResponse,
+  StudentDashboardResponse,
   StudentSummaryResponse,
   SubmitAttemptResponse,
   AnswerInput,
@@ -61,6 +62,13 @@ export async function getResultDetail(attemptId: string) {
 
 export async function getStudentSummary(studentUserId: string) {
   const response = await api.get<StudentSummaryResponse>(`/analytics/students/${studentUserId}/summary`);
+  return unwrapApiResponse(response);
+}
+
+export async function getStudentDashboard(filters?: { from?: string; to?: string }) {
+  const response = await api.get<StudentDashboardResponse>('/analytics/student/dashboard', {
+    params: filters,
+  });
   return unwrapApiResponse(response);
 }
 

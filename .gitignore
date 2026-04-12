@@ -23,3 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 .analytics_context
+.ven
+.agents
+skills-lock.json
+analytics_context
+AGENTS.md
+.agents copy

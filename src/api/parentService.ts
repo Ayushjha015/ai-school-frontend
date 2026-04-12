@@ -1,5 +1,7 @@
 import type {
   FullResultResponse,
+  LinkedChildSummary,
+  ParentChildDashboardResponse,
   LinkedStudentResponse,
   StudentExamsResponse,
   StudentResultsResponse,
@@ -9,6 +11,18 @@ import { unwrapApiResponse } from './helpers';
 
 export async function getLinkedChildren() {
   const response = await api.get<LinkedStudentResponse[]>('/parent/students');
+  return unwrapApiResponse(response);
+}
+
+export async function getAnalyticsChildren() {
+  const response = await api.get<LinkedChildSummary[]>('/analytics/parent/children');
+  return unwrapApiResponse(response);
+}
+
+export async function getParentChildDashboard(studentUserId: string, filters?: { from?: string; to?: string }) {
+  const response = await api.get<ParentChildDashboardResponse>(`/analytics/parent/children/${studentUserId}/dashboard`, {
+    params: filters,
+  });
   return unwrapApiResponse(response);
 }
 

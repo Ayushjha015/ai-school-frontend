@@ -309,6 +309,35 @@ export interface StudentExamResult {
   topicBreakdown?: TopicPerformance[];
 }
 
+export interface StudentDashboardResponse {
+  completionRate: CompletionRateResponse;
+  avgScore: AvgScoreResponse;
+  myRank: number | null;
+  classSize: number;
+  progression: ProgressionResponse;
+  heatmap: StudentHeatmapResponse;
+  performanceTable: StudentExamResult[];
+}
+
+export interface LinkedChildSummary {
+  studentUserId: string;
+  studentName: string;
+  groupId: string | null;
+  groupName: string | null;
+}
+
+export interface ParentChildDashboardResponse {
+  studentUserId: string;
+  studentName: string;
+  completionRate: CompletionRateResponse;
+  avgScore: AvgScoreResponse;
+  rankInClass: number | null;
+  classSize: number;
+  progression: ProgressionResponse;
+  heatmap: StudentHeatmapResponse;
+  performanceTable: StudentExamResult[];
+}
+
 export interface StudentSummaryResponse {
   studentId: string;
   studentName: string;

@@ -37,7 +37,7 @@ function SidebarContent({ portalLabel, title, description, links, onNavigate }: 
             className={({ isActive }) => {
               const resolvedActive = link.isActiveForPath ? link.isActiveForPath(location.pathname) : isActive;
               return `block rounded-2xl px-4 py-3 text-sm font-medium transition ${resolvedActive
-                ? 'bg-white text-white shadow-lg shadow-white/10 dark:bg-slate-100 dark:text-white dark:shadow-white/10'
+                ? 'bg-white text-slate-950 shadow-lg shadow-white/10 dark:bg-slate-800 dark:text-white dark:shadow-slate-950/40'
                 : 'text-slate-200 hover:bg-white/10 hover:text-white'
                 }`;
             }}
