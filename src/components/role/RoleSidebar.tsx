@@ -47,7 +47,9 @@ function SidebarContent({ portalLabel, title, description, links, onNavigate }: 
         <h1 className={`mt-4 text-lg font-semibold leading-tight ${isDark ? 'text-slate-50' : 'text-slate-950'}`}>{title}</h1>
         <p className={`mt-1.5 text-[11px] leading-5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{description}</p>
       </div>
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
+
+      {/* Scrollable nav with hidden scrollbar */}
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {links.map((link) => (
           <NavLink
             key={link.to}
@@ -86,11 +88,12 @@ function SidebarContent({ portalLabel, title, description, links, onNavigate }: 
           </NavLink>
         ))}
       </nav>
+
       <div className={`shrink-0 border-t px-3 py-4 ${isDark ? 'border-slate-800/80' : 'border-slate-200/80'}`}>
         <button
           type="button"
           onClick={handleLogout}
-          className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+          className={`flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
             isDark ? 'bg-rose-500 text-white hover:bg-rose-400' : 'bg-rose-600 text-white shadow-sm shadow-rose-200 hover:bg-rose-700'
           }`}
         >
@@ -140,6 +143,7 @@ export function RoleSidebar({ portalLabel, title, description, links, mobileOpen
 
   return (
     <>
+      {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-40 lg:hidden ${mobileOpen ? '' : 'pointer-events-none'}`} aria-hidden={!mobileOpen}>
         <button
           type="button"
@@ -148,12 +152,11 @@ export function RoleSidebar({ portalLabel, title, description, links, mobileOpen
           aria-label="Close navigation menu"
         />
         <aside
-          className={`absolute inset-y-0 left-0 flex w-[min(86vw,16.5rem)] flex-col border-r shadow-2xl backdrop-blur-2xl transition-transform duration-300 ease-out ${
+          className={`absolute inset-y-0 left-0 flex w-[min(86vw,16.5rem)] flex-col border-r shadow-2xl backdrop-blur-2xl transition-transform duration-300 ease-out overflow-hidden ${
             isDark
               ? 'border-slate-800 bg-slate-950/90 text-slate-100 shadow-black/40'
               : 'border-slate-200 bg-slate-50/95 text-slate-900 shadow-slate-900/20'
-          } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
+          } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
           <div className={`flex items-center justify-between gap-3 border-b px-4 py-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
             <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Menu</p>
@@ -177,13 +180,15 @@ export function RoleSidebar({ portalLabel, title, description, links, mobileOpen
         </aside>
       </div>
 
+      {/* Desktop sidebar */}
       <div
-        className={`hidden lg:block lg:sticky lg:top-6 lg:self-start ${desktopCollapsed ? 'pointer-events-none' : ''}`}
+        className={`hidden lg:block lg:sticky lg:top-6 lg:self-start overflow-hidden rounded-[24px] ${desktopCollapsed ? 'pointer-events-none' : ''}`}
         aria-hidden={desktopCollapsed}
       >
         <div
-          className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-in-out ${desktopCollapsed ? 'max-w-0 -translate-x-5 opacity-0' : 'max-w-[260px] translate-x-0 opacity-100'
-            }`}
+          className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-in-out ${
+            desktopCollapsed ? 'max-w-0 -translate-x-5 opacity-0' : 'max-w-[260px] translate-x-0 opacity-100'
+          }`}
         >
           <aside
             className={`w-[260px] overflow-hidden rounded-[24px] border shadow-xl backdrop-blur-2xl lg:flex lg:h-[calc(100vh-3rem)] ${
