@@ -34,23 +34,6 @@ export function StudentDashboardPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <section className="rounded-[28px] border border-white/70 bg-slate-950 px-5 py-6 text-white shadow-2xl shadow-slate-900/15 sm:rounded-[32px] sm:px-8 sm:py-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300">Student dashboard</p>
-        <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <h1 className="text-2xl font-semibold leading-tight sm:text-4xl">Stay on top of every exam window, result, and alert.</h1>
-            <p className="mt-3 text-sm leading-7 text-slate-300">
-              Your dashboard is polling for live exams, tracking recent performance, and surfacing the topics that need attention.
-            </p>
-          </div>
-          <div className="max-w-full rounded-3xl bg-white/8 px-5 py-4 text-sm text-slate-200">
-            <p className="font-semibold text-white">Signed in as</p>
-            <p className="mt-1">{user?.name}</p>
-            <p className="break-words text-slate-400 [overflow-wrap:anywhere]">{user?.email}</p>
-          </div>
-        </div>
-      </section>
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Live exams" value={liveExamsQuery.data?.total ?? 0} helper="These can be started right now." accent="emerald" />
         <StatCard label="Upcoming exams" value={upcomingExamsQuery.data?.total ?? 0} helper="Scheduled and waiting for their start window." accent="blue" />

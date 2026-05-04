@@ -83,7 +83,11 @@ export function RoleTopbar({
             const Icon = getActionIcon(notificationsLabel);
             return <Icon className="h-5 w-5 shrink-0" aria-hidden />;
           })()}
-          {showUnreadCount && data?.count ? <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-center text-[11px] font-semibold leading-none text-white">{data.count}</span> : null}
+          {showUnreadCount && data?.count ? (
+            <span className="absolute right-0 top-0 flex h-5 min-w-5 translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-center text-[11px] font-semibold leading-none text-white ring-2 ring-white">
+              {data.count > 99 ? '99+' : data.count}
+            </span>
+          ) : null}
         </Link>
         </div>
       </div>

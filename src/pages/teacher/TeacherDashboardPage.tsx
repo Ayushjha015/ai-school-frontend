@@ -3,7 +3,6 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
-import { useNotificationsQuery } from '../../hooks/useNotificationQueries';
 import { useTeacherExamsQuery, useTeacherGroupsQuery, useTeacherStudentsQuery } from '../../hooks/useTeacherQueries';
 import { formatDateTime } from '../../utils/formatters';
 import { getStatusTone } from '../../utils/statusStyles';
@@ -13,13 +12,12 @@ export function TeacherDashboardPage() {
   const groupsQuery = useTeacherGroupsQuery(1, 6);
   const studentsQuery = useTeacherStudentsQuery(undefined, 1, 6);
   const examsQuery = useTeacherExamsQuery({ page: 1, limit: 6 });
-  const notificationsQuery = useNotificationsQuery(1, 5);
 
-  if (groupsQuery.isLoading || studentsQuery.isLoading || examsQuery.isLoading || notificationsQuery.isLoading) {
+  if (groupsQuery.isLoading || studentsQuery.isLoading || examsQuery.isLoading) {
     return <LoadingScreen label="Loading your teacher workspace..." />;
   }
 
-  if (groupsQuery.isError || studentsQuery.isError || examsQuery.isError || notificationsQuery.isError) {
+  if (groupsQuery.isError || studentsQuery.isError || examsQuery.isError) {
     return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-6 text-rose-700 sm:p-8">We could not load your teacher dashboard right now.</div>;
   }
 
@@ -28,20 +26,6 @@ export function TeacherDashboardPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <section className="rounded-[28px] border border-white/70 bg-slate-950 px-5 py-6 text-white shadow-2xl shadow-slate-900/15 sm:rounded-[32px] sm:px-8 sm:py-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300">Teacher dashboard</p>
-        <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <h1 className="text-2xl font-semibold leading-tight sm:text-4xl">Create questions, publish exams, and monitor class performance.</h1>
-            <p className="mt-3 text-sm leading-7 text-slate-300">This workspace keeps your classes, students, question bank, drafts, and exam analytics in one place.</p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Link to="/teacher/questions/new" className="rounded-full bg-emerald-500 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-600"><IconLabel label="Create question" /></Link>
-            <Link to="/teacher/exams/new" className="rounded-full border border-white/20 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/10"><IconLabel label="Build exam" /></Link>
-          </div>
-        </div>
-      </section>
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="My classes" value={groupsQuery.data?.items.length ?? 0} helper="Classes currently visible to this teacher." accent="emerald" />
         <StatCard label="Students" value={studentsQuery.data?.total ?? 0} helper="Students you can manage or review." accent="blue" />
@@ -66,19 +50,21 @@ export function TeacherDashboardPage() {
           )}
         </SectionCard>
 
-        <SectionCard title="Recent notifications" eyebrow="Unread first" action={<Link to="/teacher/notifications" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-950"><appIcons.Inbox className="h-4 w-4" aria-hidden />Open inbox</Link>}>
-          {notificationsQuery.data && notificationsQuery.data.items.length > 0 ? (
-            <div className="space-y-3">
-              {notificationsQuery.data.items.slice(0, 4).map((item) => (
-                <div key={item.id} className={`rounded-3xl border p-4 ${item.isRead ? 'border-slate-200 bg-white' : 'border-emerald-200 bg-emerald-50/60'}`}>
-                  <p className="text-sm font-semibold text-slate-900">{item.title || item.type || 'Notification'}</p>
-                  <p className="mt-1 text-sm text-slate-600">{item.message || 'Open this update to view the latest details.'}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState title="No notifications" description="Exam updates and system alerts will appear here." />
-          )}
+        <SectionCard title="Quick navigation" eyebrow="Actions">
+          <div className="grid gap-3">
+            <Link to="/teacher/exams/new" className="flex items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/70 hover:text-emerald-800 hover:shadow-md">
+              <IconLabel label="Create exam" />
+              <appIcons.ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+            </Link>
+            <Link to="/teacher/questions/new" className="flex items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-800 hover:shadow-md">
+              <IconLabel label="Create question" />
+              <appIcons.ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+            </Link>
+            <Link to="/teacher/analytics" className="flex items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-amber-200 hover:bg-amber-50/70 hover:text-amber-800 hover:shadow-md">
+              <IconLabel label="Analytics" />
+              <appIcons.ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+            </Link>
+          </div>
         </SectionCard>
       </div>
 

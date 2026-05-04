@@ -60,12 +60,6 @@ export function ParentDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[32px] border border-white/70 bg-slate-950 px-6 py-7 text-white shadow-2xl shadow-slate-900/15 sm:px-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300">Parent dashboard</p>
-        <h1 className="mt-4 text-3xl font-semibold sm:text-4xl">Track every linked child’s exam schedule, results, and progress.</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">This dashboard gives you a quick snapshot of all linked children, then lets you drill into each child’s exams, results, and analytics without changing the student workspace.</p>
-      </section>
-
       <SectionCard title="Children overview" eyebrow="Linked students">
         {summaryQuery.data.length === 0 ? (
           <EmptyState title="No linked children" description="A linked student profile is required before parent pages can show progress data." />

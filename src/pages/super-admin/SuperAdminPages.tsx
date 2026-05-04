@@ -13,14 +13,14 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { PaginationFooter } from '../../components/common/PaginationFooter';
 import { SectionCard } from '../../components/common/SectionCard';
-import { StatCard } from '../../components/common/StatCard';
+import { StatCard, statCardIconStyles, statCardSurfaceStyles } from '../../components/common/StatCard';
 import { ThemePreferencesCard } from '../../components/common/ThemePreferencesCard';
 import { useOrganizationBranchesQuery, useOrganizationQuery, useOrganizationsQuery } from '../../hooks/useAdminQueries';
 import { useTagsQuery } from '../../hooks/useTagQueries';
 import { useAuthStore } from '../../store/authStore';
 import type { TagListResponse, TagResponse, ValidationErrorResponse } from '../../types/api';
 import { formatDateTime, formatRoleLabel } from '../../utils/formatters';
-import { getStatusAccent, type StatusAccent } from '../../utils/statusStyles';
+import { getStatusAccent } from '../../utils/statusStyles';
 import { getTagColor } from '../../utils/tagColors';
 import { IconLabel, appIcons } from '../../utils/appIcons';
 
@@ -47,22 +47,6 @@ const orgAdminSchema = z.object({
 type OrganizationForm = z.infer<typeof organizationSchema>;
 type BranchForm = z.infer<typeof branchSchema>;
 type OrgAdminForm = z.infer<typeof orgAdminSchema>;
-
-const cardBg: Record<StatusAccent, string> = {
-  emerald: 'from-white to-emerald-50 border-emerald-100 dark:from-emerald-500/18 dark:to-slate-900 dark:border-emerald-800/70',
-  blue: 'from-white to-blue-50 border-blue-100 dark:from-blue-500/18 dark:to-slate-900 dark:border-blue-800/70',
-  amber: 'from-white to-amber-50 border-amber-100 dark:from-amber-500/18 dark:to-slate-900 dark:border-amber-800/70',
-  rose: 'from-white to-rose-50 border-rose-100 dark:from-rose-500/18 dark:to-slate-900 dark:border-rose-800/70',
-  slate: 'from-white to-slate-50 border-slate-100 dark:from-slate-700/35 dark:to-slate-900 dark:border-slate-700',
-};
-
-const iconBg: Record<StatusAccent, string> = {
-  emerald: 'bg-emerald-100 text-emerald-600 ring-1 ring-emerald-200 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/20',
-  blue: 'bg-blue-100 text-blue-600 ring-1 ring-blue-200 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-400/20',
-  amber: 'bg-amber-100 text-amber-600 ring-1 ring-amber-200 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-400/20',
-  rose: 'bg-rose-100 text-rose-600 ring-1 ring-rose-200 dark:bg-rose-400/15 dark:text-rose-200 dark:ring-rose-400/20',
-  slate: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-400/10 dark:text-slate-200 dark:ring-slate-400/15',
-};
 
 const TAG_QUERY_KEY = ['tags', 'list'] as const;
 
@@ -818,10 +802,10 @@ export function SuperAdminSettingsPage() {
     <div className="space-y-6">
       <SectionCard title="Super admin profile" eyebrow="Account overview">
         <div className="grid gap-4 md:grid-cols-2">
-          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg.emerald}`}>
+          <div className={`rounded-[22px] border p-5 shadow-sm ${statCardSurfaceStyles.emerald}`}>
             <div className="flex items-start justify-between gap-3">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Name</p>
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg.emerald}`}>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${statCardIconStyles.emerald}`}>
                 <UserRound className="h-4 w-4" aria-hidden />
               </span>
             </div>
@@ -829,10 +813,10 @@ export function SuperAdminSettingsPage() {
             <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Your display name for platform administration.</p>
           </div>
 
-          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg.blue}`}>
+          <div className={`rounded-[22px] border p-5 shadow-sm ${statCardSurfaceStyles.blue}`}>
             <div className="flex items-start justify-between gap-3">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Role</p>
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg.blue}`}>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${statCardIconStyles.blue}`}>
                 <BriefcaseBusiness className="h-4 w-4" aria-hidden />
               </span>
             </div>
@@ -840,10 +824,10 @@ export function SuperAdminSettingsPage() {
             <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Your current access level in Parishkan AI.</p>
           </div>
 
-          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg.amber}`}>
+          <div className={`rounded-[22px] border p-5 shadow-sm ${statCardSurfaceStyles.amber}`}>
             <div className="flex items-start justify-between gap-3">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Email</p>
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg.amber}`}>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${statCardIconStyles.amber}`}>
                 <Mail className="h-4 w-4" aria-hidden />
               </span>
             </div>
@@ -851,10 +835,10 @@ export function SuperAdminSettingsPage() {
             <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Your primary sign-in email.</p>
           </div>
 
-          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg[statusAccent]}`}>
+          <div className={`rounded-[22px] border p-5 shadow-sm ${statCardSurfaceStyles[statusAccent]}`}>
             <div className="flex items-start justify-between gap-3">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Status</p>
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg[statusAccent]}`}>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${statCardIconStyles[statusAccent]}`}>
                 <ShieldCheck className="h-4 w-4" aria-hidden />
               </span>
             </div>

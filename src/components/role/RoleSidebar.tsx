@@ -91,7 +91,7 @@ function SidebarContent({ portalLabel, title, description, links, onNavigate }: 
           type="button"
           onClick={handleLogout}
           className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-            isDark ? 'bg-slate-800 text-slate-50 hover:bg-slate-700' : 'bg-slate-950 text-white hover:bg-slate-800'
+            isDark ? 'bg-rose-500 text-white hover:bg-rose-400' : 'bg-rose-600 text-white shadow-sm shadow-rose-200 hover:bg-rose-700'
           }`}
         >
           <appIcons.LogOut className="h-4 w-4 shrink-0" aria-hidden />
