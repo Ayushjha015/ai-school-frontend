@@ -5,12 +5,13 @@ import toast from 'react-hot-toast';
 import { deleteNotification, markAllNotificationsRead, markNotificationRead } from '../../api/notificationService';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
-import { PaginationControls } from '../../components/common/PaginationControls';
+import { PaginationFooter } from '../../components/common/PaginationFooter';
 import { SectionCard } from '../../components/common/SectionCard';
 import { useNotificationsQuery } from '../../hooks/useNotificationQueries';
 import type { NotificationResponse, PaginatedResponse, UnreadCountResponse } from '../../types/api';
 import { formatDateTime } from '../../utils/formatters';
 import { resolveNotificationTarget } from '../../utils/resolveNotificationTarget';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 export function StudentNotificationsPage() {
   const [page, setPage] = useState(1);
@@ -103,7 +104,7 @@ export function StudentNotificationsPage() {
             disabled={markAllMutation.isPending}
             className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Mark all read
+            <IconLabel label="Mark all read" icon={appIcons.CheckCircle2} />
           </button>
         }
       >
@@ -124,7 +125,7 @@ export function StudentNotificationsPage() {
                   </div>
                   <h2 className="mt-4 text-lg font-semibold text-slate-900">{item.title || 'Student update'}</h2>
                   <p className="mt-2 text-sm leading-7 text-slate-600">{item.message || 'Open this update to view the latest details.'}</p>
-                  <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{formatDateTime(item.sentAt)}</p>
+                  <p className="mt-3 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500"><appIcons.CalendarClock className="h-4 w-4" aria-hidden />{formatDateTime(item.sentAt)}</p>
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -132,14 +133,14 @@ export function StudentNotificationsPage() {
                     onClick={() => openNotification(item.id, item.type, item.relatedId)}
                     className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    Open related
+                    <IconLabel label="Open related" icon={appIcons.Eye} />
                   </button>
                   <button
                     type="button"
                     onClick={() => deleteMutation.mutate(item.id)}
                     className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400"
                   >
-                    Delete
+                    <IconLabel label="Delete" icon={appIcons.Trash2} />
                   </button>
                   {!item.isRead ? (
                     <button
@@ -147,7 +148,7 @@ export function StudentNotificationsPage() {
                       onClick={() => markReadMutation.mutate(item.id)}
                       className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400"
                     >
-                      Mark read
+                      <IconLabel label="Mark read" icon={appIcons.CheckCircle2} />
                     </button>
                   ) : null}
                 </div>
@@ -157,7 +158,7 @@ export function StudentNotificationsPage() {
         </div>
       )}
 
-      <PaginationControls page={page} total={data.total} limit={data.limit} onPageChange={setPage} />
+      <PaginationFooter page={page} total={data.total} size={data.size} pages={data.pages} limit={data.size} onPageChange={setPage} />
     </div>
   );
 }

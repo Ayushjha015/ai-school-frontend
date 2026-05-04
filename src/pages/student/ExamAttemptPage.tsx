@@ -7,6 +7,7 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { SectionCard } from '../../components/common/SectionCard';
 import { loadAttemptSession, saveAttemptSession } from '../../utils/attemptSession';
 import { resolveAttemptDeadline } from '../../utils/examTimer';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 function formatSeconds(seconds: number) {
   const safe = Math.max(0, seconds);
@@ -239,7 +240,7 @@ export function ExamAttemptPage() {
             disabled={submitMutation.isPending}
             className="w-full rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitMutation.isPending ? 'Submitting...' : 'Submit exam'}
+            <IconLabel label={submitMutation.isPending ? 'Submitting...' : 'Submit exam'} icon={appIcons.Send} />
           </button>
         </div>
       </SectionCard>
@@ -280,7 +281,7 @@ export function ExamAttemptPage() {
               disabled={activeIndex === 0}
               className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Previous question
+              <IconLabel label="Previous question" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" />
             </button>
             <div className="flex gap-3">
               <button
@@ -288,7 +289,7 @@ export function ExamAttemptPage() {
                 onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: null }))}
                 className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400"
               >
-                Clear answer
+                <IconLabel label="Clear answer" icon={appIcons.Trash2} />
               </button>
               <button
                 type="button"
@@ -296,7 +297,7 @@ export function ExamAttemptPage() {
                 disabled={activeIndex === questions.length - 1}
                 className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Next question
+                <IconLabel label="Next question" icon={appIcons.ChevronRight} />
               </button>
             </div>
           </div>

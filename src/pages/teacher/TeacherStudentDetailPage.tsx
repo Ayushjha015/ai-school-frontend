@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
-import { PaginationControls } from '../../components/common/PaginationControls';
+import { PaginationFooter } from '../../components/common/PaginationFooter';
 import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
 import { useTeacherStudentQuery, useTeacherStudentResultsQuery } from '../../hooks/useTeacherQueries';
@@ -50,9 +50,7 @@ export function TeacherStudentDetailPage() {
             ))}
           </div>
         )}
-        <div className="mt-6">
-          <PaginationControls page={page} total={resultsQuery.data.total} limit={resultsQuery.data.limit} onPageChange={setPage} />
-        </div>
+        <PaginationFooter page={page} total={resultsQuery.data.total} size={resultsQuery.data.size} pages={resultsQuery.data.pages} limit={resultsQuery.data.size} onPageChange={setPage} />
       </SectionCard>
     </div>
   );

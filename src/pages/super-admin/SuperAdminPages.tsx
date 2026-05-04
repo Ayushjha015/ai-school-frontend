@@ -1,4 +1,4 @@
-import { zodResolver } from '@hookform/resolvers/zod';
+﻿import { zodResolver } from '@hookform/resolvers/zod';
 import type { AxiosError } from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -8,9 +8,10 @@ import toast from 'react-hot-toast';
 import { z } from 'zod';
 import { createBranch, createOrgAdmin, createOrganization } from '../../api/adminService';
 import { createTag, deleteTag, updateTag } from '../../api/tagService';
+import { BriefcaseBusiness, Building2, Hash, Mail, Phone, ShieldCheck, UserRound } from 'lucide-react';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
-import { PaginationControls } from '../../components/common/PaginationControls';
+import { PaginationFooter } from '../../components/common/PaginationFooter';
 import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
 import { ThemePreferencesCard } from '../../components/common/ThemePreferencesCard';
@@ -19,8 +20,9 @@ import { useTagsQuery } from '../../hooks/useTagQueries';
 import { useAuthStore } from '../../store/authStore';
 import type { TagListResponse, TagResponse, ValidationErrorResponse } from '../../types/api';
 import { formatDateTime, formatRoleLabel } from '../../utils/formatters';
-import { getStatusAccent } from '../../utils/statusStyles';
+import { getStatusAccent, type StatusAccent } from '../../utils/statusStyles';
 import { getTagColor } from '../../utils/tagColors';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 const organizationSchema = z.object({
   name: z.string().min(2, 'Enter the organization name'),
@@ -45,6 +47,22 @@ const orgAdminSchema = z.object({
 type OrganizationForm = z.infer<typeof organizationSchema>;
 type BranchForm = z.infer<typeof branchSchema>;
 type OrgAdminForm = z.infer<typeof orgAdminSchema>;
+
+const cardBg: Record<StatusAccent, string> = {
+  emerald: 'from-white to-emerald-50 border-emerald-100 dark:from-emerald-500/18 dark:to-slate-900 dark:border-emerald-800/70',
+  blue: 'from-white to-blue-50 border-blue-100 dark:from-blue-500/18 dark:to-slate-900 dark:border-blue-800/70',
+  amber: 'from-white to-amber-50 border-amber-100 dark:from-amber-500/18 dark:to-slate-900 dark:border-amber-800/70',
+  rose: 'from-white to-rose-50 border-rose-100 dark:from-rose-500/18 dark:to-slate-900 dark:border-rose-800/70',
+  slate: 'from-white to-slate-50 border-slate-100 dark:from-slate-700/35 dark:to-slate-900 dark:border-slate-700',
+};
+
+const iconBg: Record<StatusAccent, string> = {
+  emerald: 'bg-emerald-100 text-emerald-600 ring-1 ring-emerald-200 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/20',
+  blue: 'bg-blue-100 text-blue-600 ring-1 ring-blue-200 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-400/20',
+  amber: 'bg-amber-100 text-amber-600 ring-1 ring-amber-200 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-400/20',
+  rose: 'bg-rose-100 text-rose-600 ring-1 ring-rose-200 dark:bg-rose-400/15 dark:text-rose-200 dark:ring-rose-400/20',
+  slate: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-400/10 dark:text-slate-200 dark:ring-slate-400/15',
+};
 
 const TAG_QUERY_KEY = ['tags', 'list'] as const;
 
@@ -77,7 +95,7 @@ export function SuperAdminDashboardPage() {
       <SectionCard
         title="Platform administration"
         eyebrow="Super admin dashboard"
-        action={<Link to="/super-admin/organizations/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Create organization</Link>}
+        action={<Link to="/super-admin/organizations/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Create organization" /></Link>}
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Organizations" value={data.total} helper="Active organizations currently managed in Parishkan AI." accent="emerald" />
@@ -128,8 +146,9 @@ export function SuperAdminDashboardPage() {
 
 export function SuperAdminOrganizationsPage() {
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
-  const { data, isLoading, isError } = useOrganizationsQuery(page, 12, search.trim() || undefined);
+  const { data, isLoading, isError } = useOrganizationsQuery(page, limit, search.trim() || undefined);
 
   if (isLoading) return <LoadingScreen label="Loading organizations..." />;
   if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Organization data is unavailable right now.</div>;
@@ -139,7 +158,7 @@ export function SuperAdminOrganizationsPage() {
       <SectionCard
         title="Organizations"
         eyebrow="Platform setup"
-        action={<Link to="/super-admin/organizations/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Create organization</Link>}
+        action={<Link to="/super-admin/organizations/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Create organization" /></Link>}
       >
         <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
           <input
@@ -155,30 +174,56 @@ export function SuperAdminOrganizationsPage() {
             Open any organization to manage branches and create dedicated org-admin accounts.
           </div>
         </div>
+
+        {data.items.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState title="No organizations found" description="Adjust the search or create a new organization to continue." actionLabel="Create organization" actionTo="/super-admin/organizations/new" />
+          </div>
+        ) : (
+          <>
+          <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="overflow-x-auto">
+              <table className="min-w-[860px] w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
+                  <tr>
+                    <th className="px-5 py-4">S.No</th>
+                    <th className="px-5 py-4">Organization</th>
+                    <th className="px-5 py-4">Code</th>
+                    <th className="px-5 py-4">At-risk threshold</th>
+                    <th className="px-5 py-4">Created at</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {data.items.map((organization, index) => (
+                    <tr key={organization.id} className="text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900/70">
+                      <td className="px-5 py-4 text-xs font-semibold text-slate-400">{(page - 1) * data.size + index + 1}</td>
+                      <td className="px-5 py-4">
+                        <Link to={`/super-admin/organizations/${organization.id}`} className="font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-slate-100 dark:hover:text-emerald-300">{organization.name}</Link>
+                      </td>
+                      <td className="px-5 py-4">{organization.code ?? 'Not assigned'}</td>
+                      <td className="px-5 py-4">{organization.atRiskThreshold ?? 'Not set'}</td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-400">{formatDateTime(organization.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <PaginationFooter
+            page={page}
+            total={data.total}
+            size={data.size}
+            pages={data.pages}
+            limit={limit}
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit);
+              setPage(1);
+            }}
+            onPageChange={setPage}
+          />
+          </>
+        )}
       </SectionCard>
-
-      {data.items.length === 0 ? (
-        <EmptyState title="No organizations found" description="Adjust the search or create a new organization to continue." actionLabel="Create organization" actionTo="/super-admin/organizations/new" />
-      ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {data.items.map((organization) => (
-            <Link key={organization.id} to={`/super-admin/organizations/${organization.id}`} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-950/70 dark:hover:border-slate-600">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{organization.name}</h2>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Code: {organization.code ?? 'Not assigned'}</p>
-                </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {formatDateTime(organization.createdAt)}
-                </span>
-              </div>
-              <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Threshold: {organization.atRiskThreshold ?? 'Not set'}</p>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <PaginationControls page={page} total={data.total} limit={data.limit} onPageChange={setPage} />
     </div>
   );
 }
@@ -217,7 +262,7 @@ export function CreateOrganizationPage() {
           <input {...form.register('code')} placeholder="Optional" className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
         </div>
         <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-          {mutation.isPending ? 'Creating...' : 'Create organization'}
+          <IconLabel label={mutation.isPending ? 'Creating...' : 'Create organization'} />
         </button>
       </form>
     </SectionCard>
@@ -245,10 +290,10 @@ export function SuperAdminOrganizationDetailPage() {
         action={
           <div className="flex flex-wrap gap-3">
             <Link to={`/super-admin/organizations/${organization.id}/branches/new`} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-600 dark:text-slate-200 dark:hover:border-slate-500">
-              Create branch
+              <IconLabel label="Create branch" />
             </Link>
             <Link to={`/super-admin/org-admins/new?organizationId=${organization.id}`} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
-              Create org admin
+              <IconLabel label="Create org admin" />
             </Link>
           </div>
         }
@@ -348,7 +393,7 @@ export function CreateBranchPage() {
           </div>
         </div>
         <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-          {mutation.isPending ? 'Creating...' : 'Create branch'}
+          <IconLabel label={mutation.isPending ? 'Creating...' : 'Create branch'} />
         </button>
       </form>
     </SectionCard>
@@ -429,7 +474,7 @@ export function CreateOrgAdminPage() {
         </select>
         <input {...form.register('phone')} placeholder="Phone (optional)" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
         <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-          {mutation.isPending ? 'Creating...' : 'Create org admin'}
+          <IconLabel label={mutation.isPending ? 'Creating...' : 'Create org admin'} />
         </button>
       </form>
     </SectionCard>
@@ -685,7 +730,7 @@ export function SuperAdminTagsPage() {
                               disabled={renameMutation.isPending}
                               className="rounded-full border border-emerald-400/60 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
                             >
-                              Save
+                              <IconLabel label="Save" icon={appIcons.Save} />
                             </button>
                             <button
                               type="button"
@@ -720,7 +765,7 @@ export function SuperAdminTagsPage() {
                             }}
                             className="rounded-full border border-current/20 px-2 py-0.5 text-[11px] font-semibold opacity-0 transition group-hover:opacity-100"
                           >
-                            Delete
+                            <IconLabel label="Delete" icon={appIcons.Trash2} />
                           </button>
                         </div>
                       )}
@@ -755,7 +800,7 @@ export function SuperAdminTagsPage() {
                 disabled={deleteMutation.isPending}
                 className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:opacity-60"
               >
-                {deleteMutation.isPending ? 'Deleting...' : `Delete now (${deleteCountdown})`}
+                <IconLabel label={deleteMutation.isPending ? 'Deleting...' : `Delete now (${deleteCountdown})`} icon={appIcons.Trash2} />
               </button>
             </div>
           </div>
@@ -767,35 +812,99 @@ export function SuperAdminTagsPage() {
 
 export function SuperAdminSettingsPage() {
   const user = useAuthStore((state) => state.user);
-  const details = useMemo(
-    () => [
-      { label: 'Organization', value: user?.organizationName ?? 'Platform level' },
-      { label: 'Branch', value: user?.branchName ?? 'Not assigned' },
-      { label: 'Phone', value: user?.phone ?? 'Not provided' },
-      { label: 'User ID', value: user?.id ?? 'Not available' },
-    ],
-    [user],
-  );
+  const statusAccent = getStatusAccent(user?.isActive ? 'active' : 'inactive');
 
   return (
     <div className="space-y-6">
       <SectionCard title="Super admin profile" eyebrow="Account overview">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Name" value={user?.name ?? 'Not available'} helper="Your display name for platform administration." accent="emerald" />
-          <StatCard label="Role" value={formatRoleLabel(user?.role ?? 'super_admin')} helper="Your current access level in Parishkan AI." accent="blue" />
-          <StatCard label="Email" value={user?.email ?? 'Not available'} helper="Your primary sign-in email." accent="amber" />
-          <StatCard label="Status" value={user?.isActive ? 'Active' : 'Inactive'} helper="Shows whether this account is active." accent={getStatusAccent(user?.isActive ? 'active' : 'inactive')} />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg.emerald}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Name</p>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg.emerald}`}>
+                <UserRound className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-3 break-words text-xl font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.name ?? 'Not available'}</p>
+            <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Your display name for platform administration.</p>
+          </div>
+
+          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg.blue}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Role</p>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg.blue}`}>
+                <BriefcaseBusiness className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-3 break-words text-xl font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{formatRoleLabel(user?.role ?? 'super_admin')}</p>
+            <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Your current access level in Parishkan AI.</p>
+          </div>
+
+          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg.amber}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Email</p>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg.amber}`}>
+                <Mail className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-3 break-words text-xl font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.email ?? 'Not available'}</p>
+            <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Your primary sign-in email.</p>
+          </div>
+
+          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg[statusAccent]}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Status</p>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg[statusAccent]}`}>
+                <ShieldCheck className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-3 break-words text-xl font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.isActive ? 'Active' : 'Inactive'}</p>
+            <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Shows whether this account is active.</p>
+          </div>
         </div>
       </SectionCard>
 
       <SectionCard title="Profile details" eyebrow="Account information">
         <div className="grid gap-4 md:grid-cols-2">
-          {details.map((item) => (
-            <div key={item.label} className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{item.label}</p>
-              <p className={`mt-3 text-sm text-slate-700 dark:text-slate-300 ${item.label === 'User ID' ? 'break-all' : 'break-words [overflow-wrap:anywhere]'}`}>{item.value}</p>
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+                <Building2 className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Organization</p>
             </div>
-          ))}
+            <p className="mt-2.5 break-words text-sm font-medium text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.organizationName ?? 'Platform level'}</p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
+                <Building2 className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Branch</p>
+            </div>
+            <p className="mt-2.5 break-words text-sm font-medium text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.branchName ?? 'Not assigned'}</p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                <Phone className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Phone</p>
+            </div>
+            <p className="mt-2.5 break-words text-sm font-medium text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.phone ?? 'Not provided'}</p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-400">
+                <Hash className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">User ID</p>
+            </div>
+            <p className="mt-2.5 break-all text-sm font-medium text-slate-900 dark:text-slate-100">{user?.id ?? 'Not available'}</p>
+          </div>
         </div>
       </SectionCard>
 

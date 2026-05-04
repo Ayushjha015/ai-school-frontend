@@ -7,6 +7,7 @@ import { useNotificationsQuery } from '../../hooks/useNotificationQueries';
 import { useTeacherExamsQuery, useTeacherGroupsQuery, useTeacherStudentsQuery } from '../../hooks/useTeacherQueries';
 import { formatDateTime } from '../../utils/formatters';
 import { getStatusTone } from '../../utils/statusStyles';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 export function TeacherDashboardPage() {
   const groupsQuery = useTeacherGroupsQuery(1, 6);
@@ -35,8 +36,8 @@ export function TeacherDashboardPage() {
             <p className="mt-3 text-sm leading-7 text-slate-300">This workspace keeps your classes, students, question bank, drafts, and exam analytics in one place.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Link to="/teacher/questions/new" className="rounded-full bg-emerald-500 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-600">Create question</Link>
-            <Link to="/teacher/exams/new" className="rounded-full border border-white/20 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/10">Build exam</Link>
+            <Link to="/teacher/questions/new" className="rounded-full bg-emerald-500 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-600"><IconLabel label="Create question" /></Link>
+            <Link to="/teacher/exams/new" className="rounded-full border border-white/20 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/10"><IconLabel label="Build exam" /></Link>
           </div>
         </div>
       </section>
@@ -49,14 +50,14 @@ export function TeacherDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <SectionCard title="My classes" eyebrow="Classes" action={<Link to="/teacher/groups" className="text-sm font-semibold text-slate-700 hover:text-slate-950">View all</Link>}>
+        <SectionCard title="My classes" eyebrow="Classes" action={<Link to="/teacher/groups" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-950"><appIcons.Eye className="h-4 w-4" aria-hidden />View all</Link>}>
           {groupsQuery.data && groupsQuery.data.items.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
               {groupsQuery.data.items.map((group) => (
                 <Link key={group.id} to={`/teacher/groups/${group.id}`} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg">
                   <h2 className="text-lg font-semibold text-slate-900">{group.name}</h2>
-                  <p className="mt-2 text-sm text-slate-600">Created {formatDateTime(group.createdAt)}</p>
-                  <p className="mt-4 text-sm font-semibold text-slate-700">Open class roster</p>
+                  <p className="mt-2 inline-flex items-center gap-2 text-sm text-slate-600"><appIcons.CalendarClock className="h-4 w-4" aria-hidden />Created {formatDateTime(group.createdAt)}</p>
+                  <p className="mt-4 text-sm font-semibold text-slate-700"><IconLabel label="Open class roster" /></p>
                 </Link>
               ))}
             </div>
@@ -65,7 +66,7 @@ export function TeacherDashboardPage() {
           )}
         </SectionCard>
 
-        <SectionCard title="Recent notifications" eyebrow="Unread first" action={<Link to="/teacher/notifications" className="text-sm font-semibold text-slate-700 hover:text-slate-950">Open inbox</Link>}>
+        <SectionCard title="Recent notifications" eyebrow="Unread first" action={<Link to="/teacher/notifications" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-950"><appIcons.Inbox className="h-4 w-4" aria-hidden />Open inbox</Link>}>
           {notificationsQuery.data && notificationsQuery.data.items.length > 0 ? (
             <div className="space-y-3">
               {notificationsQuery.data.items.slice(0, 4).map((item) => (
@@ -81,7 +82,7 @@ export function TeacherDashboardPage() {
         </SectionCard>
       </div>
 
-      <SectionCard title="Recent exams" eyebrow="Exam management" action={<Link to="/teacher/exams" className="text-sm font-semibold text-slate-700 hover:text-slate-950">Manage exams</Link>}>
+      <SectionCard title="Recent exams" eyebrow="Exam management" action={<Link to="/teacher/exams" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-950"><appIcons.Eye className="h-4 w-4" aria-hidden />Manage exams</Link>}>
         {examsQuery.data && examsQuery.data.items.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {examsQuery.data.items.map((exam) => (
@@ -91,7 +92,7 @@ export function TeacherDashboardPage() {
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${getStatusTone(exam.approvalStatus)}`}>{exam.approvalStatus}</span>
                 </div>
                 <h2 className="mt-4 text-lg font-semibold text-slate-900">{exam.title}</h2>
-                <p className="mt-2 text-sm text-slate-600">Created {formatDateTime(exam.createdAt)}</p>
+                <p className="mt-2 inline-flex items-center gap-2 text-sm text-slate-600"><appIcons.CalendarClock className="h-4 w-4" aria-hidden />Created {formatDateTime(exam.createdAt)}</p>
                 <p className="mt-4 text-sm font-semibold text-slate-700">{exam.questionCount ?? 0} questions</p>
               </Link>
             ))}

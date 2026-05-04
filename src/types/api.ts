@@ -52,7 +52,9 @@ export interface UserResponse {
   email: string;
   role: RoleName | string;
   organizationId?: string | null;
+  organizationName?: string | null;
   branchId?: string | null;
+  branchName?: string | null;
   phone?: string | null;
   isActive: boolean;
   createdAt: string;
@@ -60,6 +62,7 @@ export interface UserResponse {
 
 export interface StudentResponse extends UserResponse {
   groupId?: string | null;
+  groupName?: string | null;
   rollNumber?: string | null;
   parentEmail?: string | null;
   parentPhone?: string | null;
@@ -81,7 +84,9 @@ export interface GroupResponse {
   id: string;
   name: string;
   organizationId?: string | null;
+  organizationName?: string | null;
   branchId?: string | null;
+  branchName?: string | null;
   createdBy?: string | null;
   createdAt: string;
 }
@@ -261,23 +266,24 @@ export interface ExamResponse {
   questions: ExamQuestionResponse[];
 }
 
+export type StudentExamAvailabilityStatus = 'live' | 'upcoming' | 'missed' | 'given';
+
 export interface StudentExamDetails {
   id: string;
   title: string;
   subjectId: string;
+  subjectName: string;
   topic?: string | null;
   timeLimitMinutes?: number | null;
   startTime?: string | null;
   endTime?: string | null;
   passPercentage: number;
+  availabilityStatus: StudentExamAvailabilityStatus;
 }
 
-export interface StudentExamListResponse {
-  live: StudentExamDetails[];
-  upcoming: StudentExamDetails[];
-  missed: StudentExamDetails[];
-  given: StudentExamDetails[];
-}
+export type StudentExamCategory = StudentExamAvailabilityStatus;
+
+export type StudentExamListResponse = PaginatedResponse<StudentExamDetails>;
 
 export interface StudentExamSummary {
   examId: string;
@@ -352,6 +358,8 @@ export interface ResultSummary {
   attemptId: string;
   examId?: string;
   examTitle?: string;
+  examName?: string | null;
+  subjectName?: string | null;
   studentId?: string;
   score: number;
   percentage: number;
@@ -376,10 +384,11 @@ export interface StudentResultsResponse {
 }
 
 export interface PaginatedResponse<T> {
+  items: T[];
   total: number;
   page: number;
-  limit: number;
-  items: T[];
+  size: number;
+  pages: number;
 }
 
 export interface AttemptQuestion {
@@ -409,9 +418,11 @@ export interface AnswerResult {
   questionText: string;
   tags?: QuestionTagResponse[];
   selectedOptionId?: string | null;
+  selectedOptionText?: string | null;
   isCorrect?: boolean | null;
   marksObtained: number;
   correctOptionId?: string | null;
+  correctOptionText?: string | null;
 }
 
 export interface AttemptDetailResponse {
@@ -533,6 +544,15 @@ export interface OrgAdminCreateRequest {
   email: string;
   password: string;
   organizationId: string;
+  branchId?: string | null;
+  phone?: string | null;
+}
+
+export interface TeacherCreateRequest {
+  name: string;
+  email: string;
+  password: string;
+  groupIds: string[];
   branchId?: string | null;
   phone?: string | null;
 }

@@ -4,18 +4,18 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { startExamAttempt } from '../../api/studentService';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { SectionCard } from '../../components/common/SectionCard';
-import { useStudentExamDetailsQuery, useStudentExamsQuery } from '../../hooks/useStudentQueries';
+import { useStudentExamDetailsQuery } from '../../hooks/useStudentQueries';
 import { saveAttemptSession } from '../../utils/attemptSession';
 import { formatDateTime } from '../../utils/formatters';
 import { getStudentExamAvailability, getStudentExamStatusLabel, getStudentExamStatusTone } from '../../utils/studentExamStatus';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 export function ExamInstructionsPage() {
   const { examId = '' } = useParams();
   const navigate = useNavigate();
   const { data, isLoading, isError } = useStudentExamDetailsQuery(examId);
-  const examsQuery = useStudentExamsQuery();
 
-  const examStatus = getStudentExamAvailability(examId, examsQuery.data, data);
+  const examStatus = getStudentExamAvailability(data);
   const canStartExam = examStatus === 'live';
 
   const startMutation = useMutation({
@@ -67,6 +67,8 @@ export function ExamInstructionsPage() {
             </div>
             <p className="mt-4 text-sm leading-7 text-slate-600">{statusMessage}</p>
             <ul className="mt-6 space-y-3 text-sm text-slate-700">
+              <li>Subject: {data.subjectName}</li>
+              {data.topic ? <li>Topic: {data.topic}</li> : null}
               <li>Start time: {formatDateTime(data.startTime)}</li>
               <li>End time: {formatDateTime(data.endTime)}</li>
               <li>Time limit: {data.timeLimitMinutes ? `${data.timeLimitMinutes} minutes` : 'No fixed limit provided'}</li>
@@ -97,7 +99,7 @@ export function ExamInstructionsPage() {
                   disabled={startMutation.isPending}
                   className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {startMutation.isPending ? 'Starting...' : 'Start exam now'}
+                  <IconLabel label={startMutation.isPending ? 'Starting...' : 'Start exam now'} icon={appIcons.Send} />
                 </button>
               ) : (
                 <button
@@ -105,11 +107,11 @@ export function ExamInstructionsPage() {
                   disabled
                   className="rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-400 disabled:cursor-not-allowed"
                 >
-                  Start available during live window only
+                  <IconLabel label="Start available during live window only" icon={appIcons.CalendarClock} />
                 </button>
               )}
               <Link to="/student/exams" className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400">
-                Back to exams
+                <IconLabel label="Back to exams" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" />
               </Link>
             </div>
           </div>

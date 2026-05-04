@@ -1,10 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getExamLeaderboard, getResultDetail, getStudentDashboard, getStudentExamDetails, getStudentExams, getStudentResults, getStudentSummary } from '../api/studentService';
+import type { StudentExamCategory } from '../types/api';
 
-export function useStudentExamsQuery() {
+export function useStudentExamsQuery(category: StudentExamCategory, page = 1, limit = 10) {
   return useQuery({
-    queryKey: ['student', 'exams'],
-    queryFn: getStudentExams,
+    queryKey: ['student', 'exams', category, page, limit],
+    queryFn: () => getStudentExams(category, page, limit),
+    placeholderData: keepPreviousData,
     refetchInterval: 30_000,
   });
 }

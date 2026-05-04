@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
-import { PaginationControls } from '../../components/common/PaginationControls';
+import { PaginationFooter } from '../../components/common/PaginationFooter';
 import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
 import { TopicBarList } from '../../components/common/TopicBarList';
@@ -20,8 +20,18 @@ import {
 } from '../../hooks/useAdminQueries';
 import { formatDateTime, formatPercentage, formatRelativeWindow } from '../../utils/formatters';
 import { getStatusTone } from '../../utils/statusStyles';
+import { IconLabel } from '../../utils/appIcons';
 
 const examFilters = ['all', 'draft', 'published', 'ended'] as const;
+const examPageSizeOptions = [10, 20, 50] as const;
+
+function formatExamListLabel(value: string) {
+  return value
+    .split('_')
+    .filter(Boolean)
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(' ');
+}
 
 export function AdminDashboardPage() {
   const dashboardStatsQuery = useAdminDashboardStatsQuery();
@@ -115,9 +125,9 @@ export function AdminDashboardPage() {
 
         <SectionCard title="Quick access" eyebrow="Navigation">
           <div className="grid gap-3">
-            <Link to="/admin/groups" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white">Manage classes</Link>
-            <Link to="/admin/students" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white">Review students</Link>
-            <Link to="/admin/exams" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white">Monitor exams</Link>
+            <Link to="/admin/groups" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white"><IconLabel label="Manage classes" /></Link>
+            <Link to="/admin/students" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white"><IconLabel label="Review students" /></Link>
+            <Link to="/admin/exams" className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white"><IconLabel label="Monitor exams" /></Link>
           </div>
         </SectionCard>
       </div>
@@ -126,9 +136,28 @@ export function AdminDashboardPage() {
 }
 
 export function AdminExamsPage() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState<(typeof examPageSizeOptions)[number]>(10);
   const [status, setStatus] = useState<(typeof examFilters)[number]>('all');
-  const { data, isLoading, isError } = useAdminExamsQuery(page, 12, status === 'all' ? undefined : status);
+  const [search, setSearch] = useState('');
+  const { data, isLoading, isError } = useAdminExamsQuery(page, limit, status === 'all' ? undefined : status);
+  const searchTerm = search.trim().toLowerCase();
+  const visibleExams = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    if (!searchTerm) {
+      return data.items;
+    }
+
+    return data.items.filter((exam) => {
+      return [exam.title, exam.status, exam.approvalStatus]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(searchTerm));
+    });
+  }, [data, searchTerm]);
 
   if (isLoading) return <LoadingScreen label="Loading exams..." />;
   if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Exam data is unavailable right now.</div>;
@@ -136,33 +165,106 @@ export function AdminExamsPage() {
   return (
     <div className="space-y-6">
       <SectionCard title="Exams" eyebrow="Organization exam list">
-        <div className="flex flex-wrap gap-3">
-          {examFilters.map((filter) => (
-            <button key={filter} type="button" onClick={() => { setStatus(filter); setPage(1); }} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${status === filter ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}>
-              {filter}
-            </button>
-          ))}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <input
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search by title, status, or approval..."
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
+          />
+          <div className="flex rounded-full border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-950/70">
+            {examFilters.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => {
+                  setStatus(filter);
+                  setPage(1);
+                }}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${status === filter ? 'bg-slate-950 text-white shadow-sm dark:bg-slate-50 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'}`}
+              >
+                {formatExamListLabel(filter)}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {visibleExams.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState
+              title={data.items.length === 0 ? 'No exams found' : 'No matching exams'}
+              description={data.items.length === 0 ? 'Switch the filter or wait for teachers to create and publish exams.' : 'Clear the search or try a different status filter.'}
+            />
+          </div>
+        ) : (
+          <>
+          <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
+                  <tr>
+                    <th className="px-5 py-4">S.No</th>
+                    <th className="px-5 py-4">Title</th>
+                    <th className="px-5 py-4">Question count</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Approval status</th>
+                    <th className="px-5 py-4">Created at</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {visibleExams.map((exam, index) => (
+                    <tr
+                      key={exam.id}
+                      tabIndex={0}
+                      onClick={() => navigate(`/admin/exams/${exam.id}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          navigate(`/admin/exams/${exam.id}`);
+                        }
+                      }}
+                      className="cursor-pointer text-slate-700 transition hover:bg-slate-50 focus:bg-slate-50 focus:outline-none dark:text-slate-300 dark:hover:bg-slate-900/70 dark:focus:bg-slate-900/70"
+                    >
+                      <td className="px-5 py-4 text-xs font-semibold text-slate-400">{(page - 1) * limit + index + 1}</td>
+                      <td className="px-5 py-4">
+                        <div>
+                          <p className="font-semibold text-slate-900 dark:text-slate-100">{exam.title}</p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{formatRelativeWindow(exam.startTime, exam.endTime)}</p>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 font-semibold">{exam.questionCount ?? 0}</td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${getStatusTone(exam.status)}`}>{formatExamListLabel(exam.status)}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${getStatusTone(exam.approvalStatus)}`}>{formatExamListLabel(exam.approvalStatus)}</span>
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-400">{formatDateTime(exam.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <PaginationFooter
+            page={page}
+            total={data.total}
+            size={data.size}
+            pages={data.pages}
+            limit={limit}
+            options={examPageSizeOptions}
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit as (typeof examPageSizeOptions)[number]);
+              setPage(1);
+            }}
+            onPageChange={setPage}
+          />
+          </>
+        )}
       </SectionCard>
-
-      {data.items.length === 0 ? (
-        <EmptyState title="No exams found" description="Switch the filter or wait for teachers to create and publish exams." />
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {data.items.map((exam) => (
-            <Link key={exam.id} to={`/admin/exams/${exam.id}`} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-950/70 dark:hover:border-slate-600">
-              <div className="flex items-center justify-between gap-3">
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusTone(exam.status)}`}>{exam.status}</span>
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{exam.questionCount ?? 0} questions</span>
-              </div>
-              <h2 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-100">{exam.title}</h2>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{formatRelativeWindow(exam.startTime, exam.endTime)}</p>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <PaginationControls page={page} total={data.total} limit={data.limit} onPageChange={setPage} />
     </div>
   );
 }

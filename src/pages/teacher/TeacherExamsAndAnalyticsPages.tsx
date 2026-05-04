@@ -3,10 +3,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import type { QuestionResponse } from '../../types/api';
-import { createExam, deleteExam, endExam, publishExam } from '../../api/teacherService';
+import type { Difficulty, GeneratedQuestionPreview, QuestionResponse } from '../../types/api';
+import { createExam, deleteExam, endExam, generateQuestions, publishExam, saveGeneratedQuestions } from '../../api/teacherService';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
+import { PaginationFooter } from '../../components/common/PaginationFooter';
 import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
 import { TagBadge } from '../../components/common/TagBadge';
@@ -21,46 +22,158 @@ import {
   useTeacherGroupsQuery,
   useTeacherQuestionsQuery,
 } from '../../hooks/useTeacherQueries';
-import { formatDuration, formatPercentage, formatRelativeWindow } from '../../utils/formatters';
+import { formatDateTime, formatDuration, formatPercentage, formatRelativeWindow } from '../../utils/formatters';
 import { localDateTimeToOffsetIso } from '../../utils/localDateTime';
 import { getStatusAccent, getStatusTone } from '../../utils/statusStyles';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 const examFilters = ['all', 'draft', 'published', 'ended'] as const;
+const examPageSizeOptions = [10, 20, 50] as const;
+
+function formatExamListLabel(value: string) {
+  return value
+    .split('_')
+    .filter(Boolean)
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(' ');
+}
 
 export function TeacherExamsPage() {
+  const navigate = useNavigate();
   const [status, setStatus] = useState<(typeof examFilters)[number]>('all');
-  const { data, isLoading, isError } = useTeacherExamsQuery({ status: status === 'all' ? undefined : status, page: 1, limit: 50 });
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState<(typeof examPageSizeOptions)[number]>(10);
+  const [search, setSearch] = useState('');
+  const { data, isLoading, isError } = useTeacherExamsQuery({ status: status === 'all' ? undefined : status, page, limit });
+  const searchTerm = search.trim().toLowerCase();
+  const visibleExams = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    if (!searchTerm) {
+      return data.items;
+    }
+
+    return data.items.filter((exam) => {
+      return [exam.title, exam.status, exam.approvalStatus]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(searchTerm));
+    });
+  }, [data, searchTerm]);
 
   if (isLoading) return <LoadingScreen label="Loading exams..." />;
   if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load your exams.</div>;
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Exams" eyebrow="Drafts, publishing, and review" action={<Link to="/teacher/exams/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Create exam</Link>}>
-        <div className="flex flex-wrap gap-3">
-          {examFilters.map((item) => (
-            <button key={item} type="button" onClick={() => setStatus(item)} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${status === item ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'}`}>
-              {item}
-            </button>
-          ))}
+      <SectionCard
+        title="Exams"
+        eyebrow="Drafts, publishing, and review"
+        action={<Link to="/teacher/exams/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-slate-50 dark:text-slate-950 dark:hover:bg-white"><IconLabel label="Create exam" /></Link>}
+      >
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <input
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search by title, status, or approval..."
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
+          />
+          <div className="flex rounded-full border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-950/70">
+            {examFilters.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setStatus(item);
+                  setPage(1);
+                }}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${status === item ? 'bg-slate-950 text-white shadow-sm dark:bg-slate-50 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'}`}
+              >
+                {formatExamListLabel(item)}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {visibleExams.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState
+              title={data.items.length === 0 ? 'No exams found' : 'No matching exams'}
+              description={data.items.length === 0 ? 'Create a new exam draft or switch the status filter.' : 'Clear the search or try a different status filter.'}
+              actionLabel={data.items.length === 0 ? 'Build exam' : undefined}
+              actionTo={data.items.length === 0 ? '/teacher/exams/new' : undefined}
+            />
+          </div>
+        ) : (
+          <>
+          <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="overflow-x-auto">
+              <table className="min-w-[860px] w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
+                  <tr>
+                    <th className="px-5 py-4">S.No</th>
+                    <th className="px-5 py-4">Title</th>
+                    <th className="px-5 py-4">Question count</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Approval status</th>
+                    <th className="px-5 py-4">Created at</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {visibleExams.map((exam, index) => (
+                    <tr
+                      key={exam.id}
+                      tabIndex={0}
+                      onClick={() => navigate(`/teacher/exams/${exam.id}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          navigate(`/teacher/exams/${exam.id}`);
+                        }
+                      }}
+                      className="cursor-pointer text-slate-700 transition hover:bg-slate-50 focus:bg-slate-50 focus:outline-none dark:text-slate-300 dark:hover:bg-slate-900/70 dark:focus:bg-slate-900/70"
+                    >
+                      <td className="px-5 py-4 text-xs font-semibold text-slate-400">{(page - 1) * limit + index + 1}</td>
+                      <td className="px-5 py-4">
+                        <div>
+                          <p className="font-semibold text-slate-900 dark:text-slate-100">{exam.title}</p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{formatRelativeWindow(exam.startTime, exam.endTime)}</p>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 font-semibold">{exam.questionCount ?? 0}</td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${getStatusTone(exam.status)}`}>{formatExamListLabel(exam.status)}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${getStatusTone(exam.approvalStatus)}`}>{formatExamListLabel(exam.approvalStatus)}</span>
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-400">{formatDateTime(exam.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <PaginationFooter
+            page={page}
+            total={data.total}
+            size={data.size}
+            pages={data.pages}
+            limit={limit}
+            options={examPageSizeOptions}
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit as (typeof examPageSizeOptions)[number]);
+              setPage(1);
+            }}
+            onPageChange={setPage}
+          />
+          </>
+        )}
       </SectionCard>
-      {data.items.length === 0 ? (
-        <EmptyState title="No exams found" description="Create a new exam draft or switch the status filter." actionLabel="Build exam" actionTo="/teacher/exams/new" />
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {data.items.map((exam) => (
-            <Link key={exam.id} to={`/teacher/exams/${exam.id}`} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg">
-              <div className="flex items-center justify-between gap-3">
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusTone(exam.status)}`}>{exam.status}</span>
-                <span className="text-xs font-medium text-slate-500">{exam.questionCount ?? 0} questions</span>
-              </div>
-              <h2 className="mt-4 text-lg font-semibold text-slate-900">{exam.title}</h2>
-              <p className="mt-2 text-sm text-slate-600">{formatRelativeWindow(exam.startTime, exam.endTime)}</p>
-            </Link>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -74,6 +187,70 @@ type ExamBuilderForm = {
   endTime: string;
 };
 
+type ExamAIForm = {
+  topic: string;
+  difficulty: Difficulty;
+  count: number;
+  customInstructions?: string;
+};
+
+type DateRangeField = 'start' | 'end';
+
+const dateLabelFormatter = new Intl.DateTimeFormat('en-IN', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+});
+
+const monthLabelFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  year: 'numeric',
+});
+
+function formatDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateInput(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function formatDisplayDate(value: string, fallback: string) {
+  const date = parseDateInput(value);
+  return date ? dateLabelFormatter.format(date) : fallback;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function startOfWeek(date: Date) {
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  return addDays(date, mondayOffset);
+}
+
+function getCalendarDays(monthDate: Date) {
+  const firstOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const leadingDays = (firstOfMonth.getDay() + 6) % 7;
+  const start = addDays(firstOfMonth, -leadingDays);
+  return Array.from({ length: 42 }, (_, index) => addDays(start, index));
+}
+
 export function CreateExamPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -86,18 +263,26 @@ export function CreateExamPage() {
   const [topicInput, setTopicInput] = useState('');
   const [debouncedTopic, setDebouncedTopic] = useState('');
   const [sortByCreatedAt, setSortByCreatedAt] = useState<'desc' | 'asc'>('desc');
+  const [questionBankPage, setQuestionBankPage] = useState(1);
+  const [questionBankLimit, setQuestionBankLimit] = useState(10);
   const [savedDraftExamId, setSavedDraftExamId] = useState<string | null>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-  const startTimeInputRef = useRef<HTMLInputElement | null>(null);
-  const endTimeInputRef = useRef<HTMLInputElement | null>(null);
+  const [questionSource, setQuestionSource] = useState<'bank' | 'ai'>('bank');
+  const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestionPreview[]>([]);
+  const [selectedGeneratedIndexes, setSelectedGeneratedIndexes] = useState<number[]>([]);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [activeDateField, setActiveDateField] = useState<DateRangeField>('start');
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const datePickerRef = useRef<HTMLDivElement | null>(null);
   const questionsQuery = useTeacherQuestionsQuery({
     subjectId: subjectFilter || undefined,
     topic: debouncedTopic || undefined,
     sortByCreatedAt,
-    page: 1,
-    limit: 50,
+    page: questionBankPage,
+    limit: questionBankLimit,
   });
   const form = useForm<ExamBuilderForm>({ defaultValues: { title: '', subjectId: '', topic: '', timeLimitMinutes: undefined, startTime: '', endTime: '' } });
+  const aiForm = useForm<ExamAIForm>({ defaultValues: { topic: '', difficulty: 'medium', count: 5, customInstructions: '' } });
   const titleField = form.register('title', { required: 'Enter an exam title.' });
   const subjectField = form.register('subjectId', { required: 'Select a subject.' });
   const timeLimitField = form.register('timeLimitMinutes', {
@@ -105,12 +290,12 @@ export function CreateExamPage() {
     required: 'Enter the exam time limit.',
     validate: (value) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? true : 'Enter a valid time limit in minutes.'),
   });
-  const startTimeField = form.register('startTime', { required: 'Select a start time.' });
+  const startTimeField = form.register('startTime', { required: 'Select a start date.' });
   const endTimeField = form.register('endTime', {
-    required: 'Select an end time.',
+    required: 'Select an end date.',
     validate: (value) => {
       if (!value) {
-        return 'Select an end time.';
+        return 'Select an end date.';
       }
 
       const startTime = form.getValues('startTime');
@@ -118,21 +303,57 @@ export function CreateExamPage() {
         return true;
       }
 
-      return value > startTime ? true : 'End time must be after the start time.';
+      return value >= startTime ? true : 'End date must be the same as or after the start date.';
     },
   });
   const { errors } = form.formState;
+  const startDateValue = form.watch('startTime');
+  const endDateValue = form.watch('endTime');
 
-  function openNativeDateTimePicker(input: HTMLInputElement | null) {
-    if (!input) {
+  function dateToStartDateTime(date: string) {
+    return date ? `${date}T00:00` : '';
+  }
+
+  function dateToEndDateTime(date: string) {
+    return date ? `${date}T23:59` : '';
+  }
+
+  function setDateRange(startDate: string, endDate: string) {
+    form.setValue('startTime', startDate, { shouldDirty: true, shouldValidate: true });
+    form.setValue('endTime', endDate, { shouldDirty: true, shouldValidate: true });
+    const nextMonth = parseDateInput(startDate);
+    if (nextMonth) {
+      setCalendarMonth(nextMonth);
+    }
+    setDatePickerOpen(false);
+  }
+
+  function handleDateSelect(date: Date) {
+    const selectedDate = formatDateInput(date);
+
+    if (activeDateField === 'start') {
+      form.setValue('startTime', selectedDate, { shouldDirty: true, shouldValidate: true });
+      if (endDateValue && selectedDate > endDateValue) {
+        form.setValue('endTime', selectedDate, { shouldDirty: true, shouldValidate: true });
+      }
+      setActiveDateField('end');
       return;
     }
 
-    input.focus();
-
-    if ('showPicker' in input && typeof input.showPicker === 'function') {
-      input.showPicker();
+    form.setValue('endTime', selectedDate, { shouldDirty: true, shouldValidate: true });
+    if (startDateValue && selectedDate < startDateValue) {
+      form.setValue('startTime', selectedDate, { shouldDirty: true, shouldValidate: true });
     }
+    setDatePickerOpen(false);
+  }
+
+  function openDatePicker(field: DateRangeField) {
+    const date = parseDateInput(field === 'start' ? startDateValue : endDateValue);
+    setActiveDateField(field);
+    if (date) {
+      setCalendarMonth(date);
+    }
+    setDatePickerOpen(true);
   }
 
   useEffect(() => {
@@ -142,6 +363,21 @@ export function CreateExamPage() {
 
     return () => window.clearTimeout(timeout);
   }, [topicInput]);
+
+  useEffect(() => {
+    if (!datePickerOpen) {
+      return;
+    }
+
+    function handleOutsideClick(event: MouseEvent) {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setDatePickerOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [datePickerOpen]);
 
   useEffect(() => {
     if (!questionsQuery.data) {
@@ -165,8 +401,36 @@ export function CreateExamPage() {
     mutationFn: ({ examId, groupIds }: { examId: string; groupIds: string[] }) => publishExam(examId, groupIds),
     onError: () => toast.error('Unable to publish exam right now.'),
   });
+  const generateMutation = useMutation({
+    mutationFn: generateQuestions,
+    onSuccess: (response) => {
+      setGeneratedQuestions(response.questions);
+      setSelectedGeneratedIndexes(response.questions.map((_, index) => index));
+      toast.success(`Generated ${response.generatedCount} questions.`);
+    },
+    onError: () => toast.error('Unable to generate questions right now.'),
+  });
+  const saveGeneratedMutation = useMutation({
+    mutationFn: (questions: GeneratedQuestionPreview[]) =>
+      saveGeneratedQuestions({
+        subjectId: form.getValues('subjectId'),
+        questions: questions.map((question) => ({
+          questionText: question.questionText,
+          topic: question.topic || null,
+          difficulty: question.difficulty || null,
+          options: question.options,
+          tagIds: question.tags.length > 0 ? question.tags.map((tag) => tag.id) : null,
+        })),
+      }),
+    onError: () => toast.error('Unable to save generated questions.'),
+  });
 
   const questionItems = questionsQuery.data?.items ?? [];
+  const selectedGeneratedQuestions = useMemo(() => {
+    return generatedQuestions.filter((_, index) => selectedGeneratedIndexes.includes(index));
+  }, [generatedQuestions, selectedGeneratedIndexes]);
+  const areAllGeneratedQuestionsSelected = generatedQuestions.length > 0 && selectedGeneratedIndexes.length === generatedQuestions.length;
+  const selectedSubject = subjectsQuery.data?.items.find((subject) => subject.id === form.getValues('subjectId'));
 
   const visibleQuestions = useMemo(() => {
     return [...questionItems].sort((left, right) => {
@@ -184,6 +448,23 @@ export function CreateExamPage() {
       .filter(Boolean);
   }, [questionCatalog, selectedQuestionIds]);
   const publishGroups = groupsQuery.data?.items ?? [];
+  const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
+  const todayInput = formatDateInput(new Date());
+  const quickDateRanges = useMemo(() => {
+    const today = new Date();
+    const tomorrow = addDays(today, 1);
+    const thisWeekStart = startOfWeek(today);
+    const nextWeekStart = addDays(thisWeekStart, 7);
+
+    return [
+      { label: 'Today', detail: dateLabelFormatter.format(today), start: today, end: today },
+      { label: 'Tomorrow', detail: dateLabelFormatter.format(tomorrow), start: tomorrow, end: tomorrow },
+      { label: 'This week', detail: dateLabelFormatter.format(addDays(thisWeekStart, 6)), start: today, end: addDays(thisWeekStart, 6) },
+      { label: 'Next week', detail: dateLabelFormatter.format(addDays(nextWeekStart, 6)), start: nextWeekStart, end: addDays(nextWeekStart, 6) },
+      { label: '2 weeks', detail: dateLabelFormatter.format(addDays(today, 13)), start: today, end: addDays(today, 13) },
+      { label: '4 weeks', detail: dateLabelFormatter.format(addDays(today, 27)), start: today, end: addDays(today, 27) },
+    ];
+  }, []);
 
   if (subjectsQuery.isLoading || questionsQuery.isLoading || (step === 4 && groupsQuery.isLoading)) return <LoadingScreen label="Loading exam builder..." />;
   if (subjectsQuery.isError || questionsQuery.isError || !subjectsQuery.data || !questionsQuery.data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load the exam builder.</div>;
@@ -196,16 +477,16 @@ export function CreateExamPage() {
 
     const startTime = form.getValues('startTime');
     const endTime = form.getValues('endTime');
-    const formattedStartTime = startTime ? localDateTimeToOffsetIso(startTime) : null;
-    const formattedEndTime = endTime ? localDateTimeToOffsetIso(endTime) : null;
+    const formattedStartTime = startTime ? localDateTimeToOffsetIso(dateToStartDateTime(startTime)) : null;
+    const formattedEndTime = endTime ? localDateTimeToOffsetIso(dateToEndDateTime(endTime)) : null;
 
     if (startTime && !formattedStartTime) {
-      toast.error('Please choose a valid start time.');
+      toast.error('Please choose a valid start date.');
       return null;
     }
 
     if (endTime && !formattedEndTime) {
-      toast.error('Please choose a valid end time.');
+      toast.error('Please choose a valid end date.');
       return null;
     }
 
@@ -255,6 +536,87 @@ export function CreateExamPage() {
     navigate(`/teacher/exams/${savedDraftExamId}`);
   }
 
+  async function handleUseGeneratedQuestions() {
+    if (selectedGeneratedQuestions.length === 0) {
+      toast.error('Select at least one generated question to use.');
+      return false;
+    }
+
+    const saved = await saveGeneratedMutation.mutateAsync(selectedGeneratedQuestions);
+    const now = new Date().toISOString();
+    const subjectId = form.getValues('subjectId');
+
+    setQuestionCatalog((current) => {
+      const next = { ...current };
+      selectedGeneratedQuestions.forEach((question, index) => {
+        const questionId = saved.questionIds[index];
+        if (!questionId) {
+          return;
+        }
+
+        next[questionId] = {
+          id: questionId,
+          subjectId,
+          createdBy: '',
+          questionText: question.questionText,
+          topic: question.topic || null,
+          difficulty: question.difficulty || null,
+          options: question.options,
+          tags: question.tags,
+          createdAt: now,
+        };
+      });
+      return next;
+    });
+
+    setSelectedQuestionIds((current) => {
+      const next = { ...current };
+      saved.questionIds.forEach((questionId) => {
+        if (questionId) {
+          next[questionId] = next[questionId] ?? 1;
+        }
+      });
+      return next;
+    });
+
+    setGeneratedQuestions([]);
+    setSelectedGeneratedIndexes([]);
+    await queryClient.invalidateQueries({ queryKey: ['teacher', 'questions'] });
+    toast.success(`Added ${saved.savedCount} AI question${saved.savedCount === 1 ? '' : 's'} to this exam.`);
+    return true;
+  }
+
+  function handleGeneratedSelectionToggle() {
+    setSelectedGeneratedIndexes(areAllGeneratedQuestionsSelected ? [] : generatedQuestions.map((_, index) => index));
+  }
+
+  async function handleSaveAndProceed() {
+    if (questionSource === 'ai') {
+      if (selectedGeneratedQuestions.length > 0) {
+        const saved = await handleUseGeneratedQuestions();
+        if (saved) {
+          setStep(3);
+        }
+        return;
+      }
+
+      if (selectedQuestions.length > 0) {
+        setStep(3);
+        return;
+      }
+
+      toast.error('Select at least one generated question to save and proceed.');
+      return;
+    }
+
+    if (selectedQuestions.length > 0) {
+      setStep(3);
+      return;
+    }
+
+    toast.error('Select at least one question to save and proceed.');
+  }
+
   function handleStepChange(nextStep: number) {
     if (savedDraftExamId) {
       if (nextStep === 3 || nextStep === 4) {
@@ -273,7 +635,10 @@ export function CreateExamPage() {
       </SectionCard>
       {step === 1 ? (
         <SectionCard title="Exam details" eyebrow="Configuration">
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={form.handleSubmit(() => setStep(2), () => toast.error('Please complete the required exam details before continuing.'))}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={form.handleSubmit(() => {
+            aiForm.setValue('topic', form.getValues('topic'));
+            setStep(2);
+          }, () => toast.error('Please complete the required exam details before continuing.'))}>
             <label className="space-y-2">
               <input
                 {...titleField}
@@ -288,6 +653,7 @@ export function CreateExamPage() {
                 onChange={(event) => {
                   subjectField.onChange(event);
                   setSubjectFilter(event.target.value);
+                  setQuestionBankPage(1);
                 }}
                 className={`w-full rounded-2xl border px-4 py-3 ${errors.subjectId ? 'border-rose-300' : 'border-slate-200'}`}
               >
@@ -307,110 +673,310 @@ export function CreateExamPage() {
               />
               {errors.timeLimitMinutes ? <span className="text-sm text-rose-600">{errors.timeLimitMinutes.message}</span> : null}
             </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-slate-700">Start time</span>
-              <input
-                type="datetime-local"
-                {...startTimeField}
-                ref={(element) => {
-                  startTimeField.ref(element);
-                  startTimeInputRef.current = element;
-                }}
-                placeholder="Select start date and time"
-                title="Select start date and time"
-                aria-label="Select start date and time"
-                onClick={() => openNativeDateTimePicker(startTimeInputRef.current)}
-                onFocus={() => openNativeDateTimePicker(startTimeInputRef.current)}
-                className={`w-full rounded-2xl border px-4 py-3 ${errors.startTime ? 'border-rose-300' : 'border-slate-200'}`}
-              />
+            <div ref={datePickerRef} className="relative md:col-span-2">
+              <input type="hidden" {...startTimeField} />
+              <input type="hidden" {...endTimeField} />
+              <div className="mb-2 flex items-center gap-3">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Exam date window</span>
+                <span className="h-px flex-1 bg-slate-200/80 dark:bg-slate-700/80" />
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => openDatePicker('start')}
+                  className={`rounded-2xl border px-4 py-2.5 text-left transition ${
+                    errors.startTime
+                      ? 'border-rose-300'
+                      : activeDateField === 'start' && datePickerOpen
+                        ? 'border-emerald-400 bg-slate-950 text-white shadow-lg shadow-emerald-500/10 dark:bg-slate-900'
+                        : 'border-slate-200 bg-white text-slate-800 hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100 dark:hover:border-emerald-400'
+                  }`}
+                >
+                  <span className={`block text-[11px] font-semibold uppercase tracking-[0.16em] ${activeDateField === 'start' && datePickerOpen ? 'text-emerald-200' : 'text-slate-400'}`}>Start date</span>
+                  <span className="mt-0.5 block text-sm font-semibold">{formatDisplayDate(startDateValue, 'Select start date')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openDatePicker('end')}
+                  className={`rounded-2xl border px-4 py-2.5 text-left transition ${
+                    errors.endTime
+                      ? 'border-rose-300'
+                      : activeDateField === 'end' && datePickerOpen
+                        ? 'border-emerald-400 bg-slate-950 text-white shadow-lg shadow-emerald-500/10 dark:bg-slate-900'
+                        : 'border-slate-200 bg-white text-slate-800 hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100 dark:hover:border-emerald-400'
+                  }`}
+                >
+                  <span className={`block text-[11px] font-semibold uppercase tracking-[0.16em] ${activeDateField === 'end' && datePickerOpen ? 'text-emerald-200' : 'text-slate-400'}`}>End date</span>
+                  <span className="mt-0.5 block text-sm font-semibold">{formatDisplayDate(endDateValue, 'Select end date')}</span>
+                </button>
+              </div>
               {errors.startTime ? <span className="text-sm text-rose-600">{errors.startTime.message}</span> : null}
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-slate-700">End time</span>
-              <input
-                type="datetime-local"
-                {...endTimeField}
-                ref={(element) => {
-                  endTimeField.ref(element);
-                  endTimeInputRef.current = element;
-                }}
-                placeholder="Select end date and time"
-                title="Select end date and time"
-                aria-label="Select end date and time"
-                onClick={() => openNativeDateTimePicker(endTimeInputRef.current)}
-                onFocus={() => openNativeDateTimePicker(endTimeInputRef.current)}
-                className={`w-full rounded-2xl border px-4 py-3 ${errors.endTime ? 'border-rose-300' : 'border-slate-200'}`}
-              />
               {errors.endTime ? <span className="text-sm text-rose-600">{errors.endTime.message}</span> : null}
-            </label>
-            <button type="submit" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 lg:col-span-2">Continue to question selection</button>
+              {datePickerOpen ? (
+                <div className="absolute bottom-full left-0 z-50 mb-2 w-full max-w-[760px] overflow-hidden rounded-2xl border border-slate-200 bg-white opacity-100 shadow-2xl shadow-slate-900/20 dark:border-slate-700 dark:bg-[#0b1220] dark:shadow-black/40">
+                  <div className="grid max-h-[min(70vh,520px)] overflow-auto md:grid-cols-[200px_minmax(0,1fr)]">
+                    <div className="border-b border-slate-200 bg-slate-50 p-2 md:border-b-0 md:border-r dark:border-slate-700 dark:bg-[#111827]">
+                      <div className="mb-1.5 flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:bg-[#0b1220] dark:text-slate-200">
+                        <span>{activeDateField === 'start' ? 'Picking start' : 'Picking end'}</span>
+                        <button type="button" onClick={() => setDatePickerOpen(false)} className="rounded-full px-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100" aria-label="Close date picker">x</button>
+                      </div>
+                      <div className="space-y-0.5">
+                        {quickDateRanges.map((range) => (
+                          <button
+                            key={range.label}
+                            type="button"
+                            onClick={() => setDateRange(formatDateInput(range.start), formatDateInput(range.end))}
+                            className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-xl px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-white hover:shadow-sm dark:text-slate-300 dark:hover:bg-slate-800"
+                          >
+                            <span className="font-medium">{range.label}</span>
+                            <span className="text-xs text-slate-400 dark:text-slate-500">{range.detail}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="min-w-0 p-3">
+                      <div className="mb-3 flex items-center justify-between">
+                        <button type="button" onClick={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} className="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900" aria-label="Previous month">{'<'}</button>
+                        <div className="text-center">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{monthLabelFormatter.format(calendarMonth)}</p>
+                          <button type="button" onClick={() => setCalendarMonth(new Date())} className="mt-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">Today</button>
+                        </div>
+                        <button type="button" onClick={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} className="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900" aria-label="Next month">{'>'}</button>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                        {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => <span key={day}>{day}</span>)}
+                      </div>
+                      <div className="mt-2 grid grid-cols-7 gap-1">
+                        {calendarDays.map((day) => {
+                          const dateValue = formatDateInput(day);
+                          const isOutsideMonth = day.getMonth() !== calendarMonth.getMonth();
+                          const isStart = dateValue === startDateValue;
+                          const isEnd = dateValue === endDateValue;
+                          const isInRange = Boolean(startDateValue && endDateValue && dateValue > startDateValue && dateValue < endDateValue);
+                          const isToday = dateValue === todayInput;
+                          return (
+                            <button
+                              key={dateValue}
+                              type="button"
+                              onClick={() => handleDateSelect(day)}
+                              className={`h-9 rounded-lg text-sm font-semibold transition ${
+                                isStart || isEnd
+                                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                                  : isInRange
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200'
+                                    : isToday
+                                      ? 'border border-emerald-300 text-emerald-700 dark:border-emerald-500/70 dark:text-emerald-300'
+                                      : isOutsideMonth
+                                        ? 'text-slate-300 hover:bg-slate-50 dark:text-slate-700 dark:hover:bg-slate-900'
+                                        : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'
+                              }`}
+                            >
+                              {day.getDate()}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <button type="submit" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 lg:col-span-2"><IconLabel label="Continue to question selection" icon={appIcons.ChevronRight} /></button>
           </form>
         </SectionCard>
       ) : null}
       {step === 2 ? (
-        <SectionCard title="Select questions" eyebrow="Question bank">
-          <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
-              <input
-                value={topicInput}
-                onChange={(event) => setTopicInput(event.target.value)}
-                placeholder="Filter questions by topic"
-                className="rounded-2xl border border-slate-200 px-4 py-3"
-              />
-              <select
-                value={sortByCreatedAt}
-                onChange={(event) => setSortByCreatedAt(event.target.value as 'desc' | 'asc')}
-                className="rounded-2xl border border-slate-200 px-4 py-3"
-              >
-                <option value="desc">Newest first</option>
-                <option value="asc">Oldest first</option>
-              </select>
+        <SectionCard title="Select questions" eyebrow={questionSource === 'bank' ? 'Question bank' : 'AI generate'}>
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex rounded-full bg-slate-100 p-1">
+              {(['bank', 'ai'] as const).map((source) => (
+                <button
+                  key={source}
+                  type="button"
+                  onClick={() => setQuestionSource(source)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${questionSource === source ? 'bg-slate-950 text-white' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  {source === 'bank' ? 'Question Bank' : 'AI Generate'}
+                </button>
+              ))}
             </div>
-            <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-              <span>{debouncedTopic ? `Showing topics matching "${debouncedTopic}"` : 'Showing all topics'}</span>
-              <span className="sm:text-right">{selectedQuestions.length} question{selectedQuestions.length === 1 ? '' : 's'} selected</span>
-            </div>
+            <span className="text-sm text-slate-600">{selectedQuestions.length} question{selectedQuestions.length === 1 ? '' : 's'} selected</span>
           </div>
-          {visibleQuestions.length === 0 ? <EmptyState title="No questions available" description="Adjust the topic filter or create a question to populate the bank." actionLabel="Open question bank" actionTo="/teacher/questions" /> : (
-            <div className="space-y-4">
-              {visibleQuestions.map((question) => {
-                const isSelected = Boolean(selectedQuestionIds[question.id]);
-                return (
-                  <div key={question.id} className={`rounded-3xl border p-5 transition ${isSelected ? 'border-emerald-400/70 bg-slate-900 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]' : 'border-slate-200 bg-white'}`}>
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-200' : 'text-slate-500'}`}>{question.topic || 'Question'}</p>
-                        <h2 className={`mt-3 text-base font-semibold ${isSelected ? 'text-slate-50' : 'text-slate-900'}`}>{question.questionText}</h2>
-                        {question.tags.length > 0 ? (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {question.tags.map((tag) => <TagBadge key={tag.id} tag={tag} compact />)}
+
+          {questionSource === 'bank' ? (
+            <>
+              <div className="mb-5 space-y-4">
+                <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+                  <input
+                    value={topicInput}
+                    onChange={(event) => {
+                      setTopicInput(event.target.value);
+                      setQuestionBankPage(1);
+                    }}
+                    placeholder="Filter questions by topic"
+                    className="rounded-2xl border border-slate-200 px-4 py-3"
+                  />
+                  <select
+                    value={sortByCreatedAt}
+                    onChange={(event) => {
+                      setSortByCreatedAt(event.target.value as 'desc' | 'asc');
+                      setQuestionBankPage(1);
+                    }}
+                    className="rounded-2xl border border-slate-200 px-4 py-3"
+                  >
+                    <option value="desc">Newest first</option>
+                    <option value="asc">Oldest first</option>
+                  </select>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 pt-2 text-sm text-slate-600 dark:text-slate-400">
+                  <span className="min-w-0 font-medium">{debouncedTopic ? `Showing topics matching "${debouncedTopic}"` : 'Showing all topics'}</span>
+                  <span className="shrink-0 font-medium">
+                    Page {questionsQuery.data.page} of {questionsQuery.data.pages || 1}
+                  </span>
+                </div>
+              </div>
+              {visibleQuestions.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 p-8 text-center shadow-sm">
+                  <h3 className="text-lg font-semibold text-slate-900">No questions available</h3>
+                  <p className="mt-2 text-sm text-slate-600">Adjust the topic filter or generate AI questions for this exam.</p>
+                  <button type="button" onClick={() => setQuestionSource('ai')} className="mt-5 inline-flex rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700">
+                    <IconLabel label="Generate with AI" icon={appIcons.Sparkles} />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {visibleQuestions.map((question) => {
+                    const isSelected = Boolean(selectedQuestionIds[question.id]);
+                    return (
+                      <div key={question.id} className={`rounded-3xl border p-5 transition ${isSelected ? 'border-emerald-400/70 bg-slate-900 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]' : 'border-slate-200 bg-white'}`}>
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-200' : 'text-slate-500'}`}>{question.topic || 'Question'}</p>
+                            <h2 className={`mt-3 text-base font-semibold ${isSelected ? 'text-slate-50' : 'text-slate-900'}`}>{question.questionText}</h2>
+                            {question.tags.length > 0 ? (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {question.tags.map((tag) => <TagBadge key={tag.id} tag={tag} compact />)}
+                              </div>
+                            ) : null}
                           </div>
-                        ) : null}
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="number"
+                              min={0}
+                              value={selectedQuestionIds[question.id] ?? 1}
+                              onChange={(event) => {
+                                const nextValue = Number(event.target.value);
+                                setSelectedQuestionIds((current) => ({
+                                  ...current,
+                                  [question.id]: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0,
+                                }));
+                              }}
+                              className={`w-20 rounded-2xl border px-3 py-2 ${isSelected ? 'border-emerald-300/40 bg-slate-950 text-slate-50' : 'border-slate-200'}`}
+                              disabled={!isSelected}
+                            />
+                            <button type="button" onClick={() => setSelectedQuestionIds((current) => { const next = { ...current }; if (next[question.id]) { delete next[question.id]; } else { next[question.id] = 1; } return next; })} className={`rounded-full px-4 py-2 text-sm font-semibold ${isSelected ? 'bg-slate-950 text-white' : 'border border-slate-300 text-slate-700'}`}>{isSelected ? 'Selected' : 'Add'}</button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="number"
-                          min={0}
-                          value={selectedQuestionIds[question.id] ?? 1}
-                          onChange={(event) => {
-                            const nextValue = Number(event.target.value);
-                            setSelectedQuestionIds((current) => ({
-                              ...current,
-                              [question.id]: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0,
-                            }));
-                          }}
-                          className={`w-20 rounded-2xl border px-3 py-2 ${isSelected ? 'border-emerald-300/40 bg-slate-950 text-slate-50' : 'border-slate-200'}`}
-                          disabled={!isSelected}
-                        />
-                        <button type="button" onClick={() => setSelectedQuestionIds((current) => { const next = { ...current }; if (next[question.id]) { delete next[question.id]; } else { next[question.id] = 1; } return next; })} className={`rounded-full px-4 py-2 text-sm font-semibold ${isSelected ? 'bg-slate-950 text-white' : 'border border-slate-300 text-slate-700'}`}>{isSelected ? 'Selected' : 'Add'}</button>
-                      </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              )}
+              <PaginationFooter
+                page={questionBankPage}
+                total={questionsQuery.data.total}
+                size={questionsQuery.data.size}
+                pages={questionsQuery.data.pages}
+                limit={questionBankLimit}
+                options={examPageSizeOptions}
+                onLimitChange={(nextLimit) => {
+                  setQuestionBankLimit(nextLimit);
+                  setQuestionBankPage(1);
+                }}
+                onPageChange={setQuestionBankPage}
+              />
+            </>
+          ) : (
+            <div className="space-y-5">
+              <form
+                className="grid gap-4 lg:grid-cols-2"
+                onSubmit={aiForm.handleSubmit((values) => generateMutation.mutate({
+                  subjectId: form.getValues('subjectId'),
+                  topic: values.topic,
+                  difficulty: values.difficulty,
+                  count: Number(values.count),
+                  customInstructions: values.customInstructions || null,
+                }))}
+              >
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  Subject: <span className="font-semibold text-slate-900">{selectedSubject?.name ?? 'Selected exam subject'}</span>
+                </div>
+                <input {...aiForm.register('topic')} placeholder="Topic for generated questions" className="rounded-2xl border border-slate-200 px-4 py-3" />
+                <select {...aiForm.register('difficulty')} className="rounded-2xl border border-slate-200 px-4 py-3">
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+                <input type="number" min={1} max={20} {...aiForm.register('count', { valueAsNumber: true })} className="rounded-2xl border border-slate-200 px-4 py-3" />
+                <textarea {...aiForm.register('customInstructions')} placeholder="Manual instructions for the generator" rows={4} className="rounded-2xl border border-slate-200 px-4 py-3 lg:col-span-2" />
+                <button type="submit" disabled={generateMutation.isPending} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 lg:col-span-2"><IconLabel label={generateMutation.isPending ? 'Generating...' : 'Generate preview'} icon={appIcons.Sparkles} /></button>
+              </form>
+
+              {generatedQuestions.length === 0 ? (
+                <EmptyState title="No AI preview yet" description="Generate questions here, then use the selected ones in this exam." />
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-slate-600">{selectedGeneratedQuestions.length} generated question{selectedGeneratedQuestions.length === 1 ? '' : 's'} selected</p>
+                    <button
+                      type="button"
+                      onClick={handleGeneratedSelectionToggle}
+                      className={`rounded-full px-5 py-3 text-sm font-semibold text-white transition ${areAllGeneratedQuestionsSelected ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                    >
+                      <IconLabel label={areAllGeneratedQuestionsSelected ? 'Deselect all' : 'Select all'} icon={areAllGeneratedQuestionsSelected ? appIcons.Trash2 : appIcons.CheckCircle2} />
+                    </button>
                   </div>
-                );
-              })}
+                  {generatedQuestions.map((question, index) => {
+                    const selected = selectedGeneratedIndexes.includes(index);
+                    return (
+                      <div key={`${question.questionText}-${index}`} className={`rounded-3xl border p-5 transition ${selected ? 'border-emerald-400/70 bg-slate-900 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]' : 'border-slate-200 bg-white'}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${selected ? 'text-emerald-200' : 'text-slate-500'}`}>
+                              {question.difficulty || 'generated'}{question.topic ? ` - ${question.topic}` : ''}
+                            </p>
+                            <h2 className={`mt-3 text-base font-semibold ${selected ? 'text-slate-50' : 'text-slate-900'}`}>{question.questionText}</h2>
+                            <div className="mt-3">
+                              <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${selected ? 'text-slate-400' : 'text-slate-500'}`}>Auto-tagged by AI</p>
+                              {question.tags.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {question.tags.map((tag) => <TagBadge key={`${tag.id}-${index}`} tag={tag} compact />)}
+                                </div>
+                              ) : null}
+                            </div>
+                            <ol className={`mt-4 space-y-2 text-sm ${selected ? 'text-slate-300' : 'text-slate-600'}`}>
+                              {question.options.map((option, optionIndex) => (
+                                <li key={`${index}-${optionIndex}`} className={option.isCorrect ? (selected ? 'font-semibold text-emerald-300' : 'font-semibold text-emerald-700') : ''}>
+                                  {option.optionText}
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => setSelectedGeneratedIndexes((current) => selected ? current.filter((item) => item !== index) : [...current, index])}
+                            className="mt-1 h-5 w-5 accent-emerald-500"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between"><button type="button" onClick={() => setStep(1)} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700">Back</button><button type="button" onClick={() => setStep(3)} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white">Review</button></div>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between"><button type="button" onClick={() => setStep(1)} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700"><IconLabel label="Back" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" /></button><button type="button" onClick={handleSaveAndProceed} disabled={saveGeneratedMutation.isPending} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"><IconLabel label={saveGeneratedMutation.isPending ? 'Saving...' : 'Save and proceed'} icon={appIcons.Save} /></button></div>
         </SectionCard>
       ) : null}
       {step === 3 ? (
@@ -419,10 +985,10 @@ export function CreateExamPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-600">Title</p><p className="mt-2 text-lg font-semibold text-slate-900">{form.getValues('title')}</p><p className="mt-4 text-sm text-slate-600">Selected questions: {selectedQuestions.length}</p></div>
             <div className="space-y-3">{selectedQuestions.map((question) => <div key={question.id} className="rounded-3xl border border-slate-200 bg-white p-4"><p className="text-sm font-semibold text-slate-900">{question.questionText}</p><p className="mt-1 text-sm text-slate-600">Marks: {selectedQuestionIds[question.id]}</p></div>)}</div>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-              <button type="button" onClick={() => savedDraftExamId ? setStep(3) : setStep(2)} disabled={createMutation.isPending || publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60">Back</button>
+              <button type="button" onClick={() => savedDraftExamId ? setStep(3) : setStep(2)} disabled={createMutation.isPending || publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60"><IconLabel label="Back" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" /></button>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={handleSaveAndBack} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:opacity-60">{createMutation.isPending ? 'Saving...' : 'Save and back'}</button>
-                <button type="button" onClick={handleSaveAndPublish} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60">{createMutation.isPending ? 'Saving draft...' : 'Save and publish'}</button>
+                <button type="button" onClick={handleSaveAndBack} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:opacity-60"><IconLabel label={createMutation.isPending ? 'Saving...' : 'Save and back'} icon={appIcons.Save} /></button>
+                <button type="button" onClick={handleSaveAndPublish} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"><IconLabel label={createMutation.isPending ? 'Saving draft...' : 'Save and publish'} icon={appIcons.Send} /></button>
               </div>
             </div>
           </div>
@@ -441,8 +1007,8 @@ export function CreateExamPage() {
               </div>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-              <button type="button" onClick={() => setStep(3)} disabled={publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60">Back</button>
-              <button type="button" onClick={handlePublishExam} disabled={publishMutation.isPending || selectedGroupIds.length === 0 || !savedDraftExamId} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60">{publishMutation.isPending ? 'Publishing...' : 'Publish exam'}</button>
+              <button type="button" onClick={() => setStep(3)} disabled={publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60"><IconLabel label="Back" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" /></button>
+              <button type="button" onClick={handlePublishExam} disabled={publishMutation.isPending || selectedGroupIds.length === 0 || !savedDraftExamId} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"><IconLabel label={publishMutation.isPending ? 'Publishing...' : 'Publish exam'} icon={appIcons.Send} /></button>
             </div>
           </div>
         </SectionCard>

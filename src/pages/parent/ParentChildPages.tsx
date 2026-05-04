@@ -1,4 +1,5 @@
 ﻿import { Link, useParams } from 'react-router-dom';
+import { useState } from 'react';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { SectionCard } from '../../components/common/SectionCard';
@@ -6,11 +7,56 @@ import { StatCard } from '../../components/common/StatCard';
 import { TagBadge } from '../../components/common/TagBadge';
 import { TopicBarList } from '../../components/common/TopicBarList';
 import { useChildExamsQuery, useChildResultDetailQuery, useChildResultsQuery } from '../../hooks/useParentQueries';
+import type { StudentExamSummary } from '../../types/api';
 import { formatDateTime, formatPercentage, formatRelativeWindow } from '../../utils/formatters';
 import { getStatusTone } from '../../utils/statusStyles';
 
+function ParentExamTable({ exams, emptyTitle, searchTerm }: { exams: StudentExamSummary[]; emptyTitle: string; searchTerm: string }) {
+  const visibleExams = searchTerm
+    ? exams.filter((exam) => [exam.title, exam.studentStatus, exam.examStatus].some((value) => value.toLowerCase().includes(searchTerm)))
+    : exams;
+
+  if (visibleExams.length === 0) {
+    return <EmptyState title={exams.length === 0 ? emptyTitle : 'No matching exams'} description={exams.length === 0 ? 'Nothing to show in this category yet.' : 'Clear the search or check another category.'} />;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/70">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
+            <tr>
+              <th className="px-5 py-4">S.No</th>
+              <th className="px-5 py-4">Title</th>
+              <th className="px-5 py-4">Schedule</th>
+              <th className="px-5 py-4">Exam status</th>
+              <th className="px-5 py-4">Student status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            {visibleExams.map((exam, index) => (
+              <tr key={exam.examId} className="text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900/70">
+                <td className="px-5 py-4 text-xs font-semibold text-slate-400">{index + 1}</td>
+                <td className="px-5 py-4 font-semibold text-slate-900 dark:text-slate-100">{exam.title}</td>
+                <td className="px-5 py-4 text-slate-600 dark:text-slate-400">{formatRelativeWindow(exam.startTime, exam.endTime)}</td>
+                <td className="px-5 py-4">
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${getStatusTone(exam.examStatus)}`}>{exam.examStatus}</span>
+                </td>
+                <td className="px-5 py-4">
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${getStatusTone(exam.studentStatus)}`}>{exam.studentStatus}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function ParentChildExamsPage() {
   const { studentUserId = '' } = useParams();
+  const [search, setSearch] = useState('');
   const { data, isLoading, isError } = useChildExamsQuery(studentUserId);
 
   if (isLoading) {
@@ -26,27 +72,24 @@ export function ParentChildExamsPage() {
     { title: 'Completed', items: data.completed },
     { title: 'Missed', items: data.missed },
   ];
+  const searchTerm = search.trim().toLowerCase();
 
   return (
     <div className="space-y-6">
-      <SectionCard title={`${data.fullName} • Exams`} eyebrow="Child exam status"><p className="text-sm text-slate-600">Grouped into upcoming, completed, and missed exam states for this linked child.</p></SectionCard>
+      <SectionCard title={`${data.fullName} • Exams`} eyebrow="Child exam status">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <p className="text-sm text-slate-600 dark:text-slate-300">Grouped into upcoming, completed, and missed exam states for this linked child.</p>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search child exams..."
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 lg:w-80"
+          />
+        </div>
+      </SectionCard>
       {sections.map((section) => (
         <SectionCard key={section.title} title={section.title} eyebrow="Exam list">
-          {section.items.length === 0 ? (
-            <EmptyState title={`No ${section.title.toLowerCase()} exams`} description="Nothing to show in this category yet." />
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-              {section.items.map((exam) => (
-                <div key={exam.examId} className="rounded-3xl border border-slate-200 bg-white p-5">
-                  <h2 className="text-lg font-semibold text-slate-900">{exam.title}</h2>
-                  <p className="mt-2 text-sm text-slate-600">{formatRelativeWindow(exam.startTime, exam.endTime)}</p>
-                  <div className="mt-3">
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusTone(exam.studentStatus)}`}>{exam.studentStatus}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <ParentExamTable exams={section.items} emptyTitle={`No ${section.title.toLowerCase()} exams`} searchTerm={searchTerm} />
         </SectionCard>
       ))}
     </div>

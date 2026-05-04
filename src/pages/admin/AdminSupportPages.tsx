@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+﻿import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -9,20 +9,37 @@ import { deleteNotification, markAllNotificationsRead, markNotificationRead } fr
 import { updateOrganizationSettings } from '../../api/adminService';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
-import { PaginationControls } from '../../components/common/PaginationControls';
+import { PaginationFooter } from '../../components/common/PaginationFooter';
 import { SectionCard } from '../../components/common/SectionCard';
-import { StatCard } from '../../components/common/StatCard';
+import { BriefcaseBusiness, Building2, Hash, Mail, Phone, ShieldCheck, UserRound } from 'lucide-react';
 import { ThemePreferencesCard } from '../../components/common/ThemePreferencesCard';
 import { useNotificationsQuery } from '../../hooks/useNotificationQueries';
 import { useAdminOrgOverviewQuery } from '../../hooks/useAdminQueries';
 import { useAuthStore } from '../../store/authStore';
 import type { NotificationResponse, PaginatedResponse, UnreadCountResponse } from '../../types/api';
 import { formatDateTime, formatRoleLabel } from '../../utils/formatters';
-import { getStatusAccent } from '../../utils/statusStyles';
+import { getStatusAccent, type StatusAccent } from '../../utils/statusStyles';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 const settingsSchema = z.object({
   atRiskThreshold: z.number().min(0).max(100),
 });
+
+const cardBg: Record<StatusAccent, string> = {
+  emerald: 'from-white to-emerald-50 border-emerald-100 dark:from-emerald-500/18 dark:to-slate-900 dark:border-emerald-800/70',
+  blue: 'from-white to-blue-50 border-blue-100 dark:from-blue-500/18 dark:to-slate-900 dark:border-blue-800/70',
+  amber: 'from-white to-amber-50 border-amber-100 dark:from-amber-500/18 dark:to-slate-900 dark:border-amber-800/70',
+  rose: 'from-white to-rose-50 border-rose-100 dark:from-rose-500/18 dark:to-slate-900 dark:border-rose-800/70',
+  slate: 'from-white to-slate-50 border-slate-100 dark:from-slate-700/35 dark:to-slate-900 dark:border-slate-700',
+};
+
+const iconBg: Record<StatusAccent, string> = {
+  emerald: 'bg-emerald-100 text-emerald-600 ring-1 ring-emerald-200 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/20',
+  blue: 'bg-blue-100 text-blue-600 ring-1 ring-blue-200 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-400/20',
+  amber: 'bg-amber-100 text-amber-600 ring-1 ring-amber-200 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-400/20',
+  rose: 'bg-rose-100 text-rose-600 ring-1 ring-rose-200 dark:bg-rose-400/15 dark:text-rose-200 dark:ring-rose-400/20',
+  slate: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-400/10 dark:text-slate-200 dark:ring-slate-400/15',
+};
 
 function resolveAdminNotificationTarget(title?: string | null, type?: string | null, relatedId?: string | null) {
   const normalizedType = (type ?? '').toLowerCase();
@@ -127,7 +144,7 @@ export function AdminNotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Notifications" eyebrow="Org admin inbox" action={<button type="button" onClick={() => markAllMutation.mutate()} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Mark all read</button>}>
+      <SectionCard title="Notifications" eyebrow="Org admin inbox" action={<button type="button" onClick={() => markAllMutation.mutate()} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"><IconLabel label="Mark all read" icon={appIcons.CheckCircle2} /></button>}>
         <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">Review system alerts, exam activity, and management events for your organization here.</p>
       </SectionCard>
       {data.items.length === 0 ? (
@@ -140,18 +157,18 @@ export function AdminNotificationsPage() {
                 <div>
                   <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">{item.title || item.type || 'Notification'}</p>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{item.message || 'Open this update to view the latest details.'}</p>
-                  <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{formatDateTime(item.sentAt)}</p>
+                  <p className="mt-3 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400"><appIcons.CalendarClock className="h-4 w-4" aria-hidden />{formatDateTime(item.sentAt)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => openNotification(item.id, item.title, item.type, item.relatedId)} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Open related</button>
-                  <button type="button" onClick={() => deleteMutation.mutate(item.id)} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200">Delete</button>
+                  <button type="button" onClick={() => openNotification(item.id, item.title, item.type, item.relatedId)} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"><IconLabel label="Open related" icon={appIcons.Eye} /></button>
+                  <button type="button" onClick={() => deleteMutation.mutate(item.id)} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200"><IconLabel label="Delete" icon={appIcons.Trash2} /></button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
-      <PaginationControls page={page} total={data.total} limit={data.limit} onPageChange={setPage} />
+      <PaginationFooter page={page} total={data.total} size={data.size} pages={data.pages} limit={data.size} onPageChange={setPage} />
     </div>
   );
 }
@@ -160,6 +177,7 @@ export function AdminSettingsPage() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const overviewQuery = useAdminOrgOverviewQuery();
+  const statusAccent = getStatusAccent(user?.isActive ? 'active' : 'inactive');
   const form = useForm<z.infer<typeof settingsSchema>>({
     resolver: zodResolver(settingsSchema),
     values: { atRiskThreshold: overviewQuery.data?.atRiskThreshold ?? 0 },
@@ -180,11 +198,50 @@ export function AdminSettingsPage() {
   return (
     <div className="space-y-6">
       <SectionCard title="Admin settings" eyebrow="Account overview">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Name" value={user?.name ?? 'Not available'} helper="Your display name for the organization workspace." accent="emerald" />
-          <StatCard label="Role" value={formatRoleLabel(user?.role ?? 'org_admin')} helper="Your current access level in Parishkan AI." accent="blue" />
-          <StatCard label="Email" value={user?.email ?? 'Not available'} helper="Your primary sign-in email." accent="amber" />
-          <StatCard label="Status" value={user?.isActive ? 'Active' : 'Inactive'} helper="Shows whether this account is active." accent={getStatusAccent(user?.isActive ? 'active' : 'inactive')} />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg.emerald}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Name</p>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg.emerald}`}>
+                <UserRound className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-3 break-words text-xl font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.name ?? 'Not available'}</p>
+            <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Your display name for the organization workspace.</p>
+          </div>
+
+          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg.blue}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Role</p>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg.blue}`}>
+                <BriefcaseBusiness className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-3 break-words text-xl font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{formatRoleLabel(user?.role ?? 'org_admin')}</p>
+            <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Your current access level in Parishkan AI.</p>
+          </div>
+
+          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg.amber}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Email</p>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg.amber}`}>
+                <Mail className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-3 break-words text-xl font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.email ?? 'Not available'}</p>
+            <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Your primary sign-in email.</p>
+          </div>
+
+          <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${cardBg[statusAccent]}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Status</p>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg[statusAccent]}`}>
+                <ShieldCheck className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-3 break-words text-xl font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.isActive ? 'Active' : 'Inactive'}</p>
+            <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">Shows whether this account is active.</p>
+          </div>
         </div>
       </SectionCard>
 
@@ -196,7 +253,7 @@ export function AdminSettingsPage() {
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Students below this percentage are flagged across analytics and dashboards.</p>
           </div>
           <button type="submit" disabled={mutation.isPending || !user?.organizationId} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-            {mutation.isPending ? 'Saving...' : 'Save threshold'}
+            <IconLabel label={mutation.isPending ? 'Saving...' : 'Save threshold'} icon={appIcons.Save} />
           </button>
         </form>
       </SectionCard>
@@ -204,20 +261,43 @@ export function AdminSettingsPage() {
       <SectionCard title="Profile details" eyebrow="Account information">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Organization</p>
-            <p className="mt-3 break-words text-sm text-slate-700 dark:text-slate-300 [overflow-wrap:anywhere]">{user?.organizationName ?? 'Not provided'}</p>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+                <Building2 className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Organization</p>
+            </div>
+            <p className="mt-2.5 break-words text-sm font-medium text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.organizationName ?? 'Not provided'}</p>
           </div>
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Branch</p>
-            <p className="mt-3 break-words text-sm text-slate-700 dark:text-slate-300 [overflow-wrap:anywhere]">{user?.branchName ?? 'Not assigned'}</p>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
+                <Building2 className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Branch</p>
+            </div>
+            <p className="mt-2.5 break-words text-sm font-medium text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.branchName ?? 'Not assigned'}</p>
           </div>
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Phone</p>
-            <p className="mt-3 break-words text-sm text-slate-700 dark:text-slate-300 [overflow-wrap:anywhere]">{user?.phone ?? 'Not provided'}</p>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                <Phone className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Phone</p>
+            </div>
+            <p className="mt-2.5 break-words text-sm font-medium text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">{user?.phone ?? 'Not provided'}</p>
           </div>
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">User ID</p>
-            <p className="mt-3 break-all text-sm text-slate-700 dark:text-slate-300">{user?.id ?? 'Not available'}</p>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-400">
+                <Hash className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">User ID</p>
+            </div>
+            <p className="mt-2.5 break-all text-sm font-medium text-slate-900 dark:text-slate-100">{user?.id ?? 'Not available'}</p>
           </div>
         </div>
       </SectionCard>

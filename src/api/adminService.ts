@@ -20,6 +20,7 @@ import type {
   StudentSummaryResponse,
   SubjectOverviewResponse,
   SubjectResponse,
+  TeacherCreateRequest,
   TeacherExamListItem,
   TeacherUpdateRequest,
   UserResponse,
@@ -78,7 +79,7 @@ export async function getTeacher(teacherId: string) {
   return unwrapApiResponse(response);
 }
 
-export async function createTeacher(payload: { name: string; email: string; password: string; branchId?: string | null; phone?: string | null }) {
+export async function createTeacher(payload: TeacherCreateRequest) {
   const response = await api.post<UserResponse>('/users/teachers', payload);
   return unwrapApiResponse(response);
 }

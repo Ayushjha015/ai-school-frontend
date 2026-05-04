@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { BrandBadge } from '../branding/BrandBadge';
+import { getNavigationIcon } from '../../utils/appIcons';
+import { useTheme } from '../../theme/ThemeProvider';
 
 interface RoleLink {
   to: string;
@@ -20,15 +22,21 @@ interface RoleSidebarProps {
 
 function SidebarContent({ portalLabel, title, description, links, onNavigate }: { portalLabel: string; title: string; description: string; links: RoleLink[]; onNavigate?: () => void }) {
   const location = useLocation();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   return (
-    <div className="flex h-full flex-col gap-6">
-      <div className="shrink-0 rounded-3xl bg-white/8 p-4">
-        <BrandBadge label={portalLabel} />
-        <h1 className="mt-3 text-2xl font-semibold">{title}</h1>
-        <p className="mt-2 text-sm text-slate-300">{description}</p>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className={`shrink-0 border-b px-5 py-5 ${isDark ? 'border-slate-800/80' : 'border-slate-200/80'}`}>
+        <BrandBadge
+          label={portalLabel}
+          iconClassName="h-8 w-8"
+          textClassName={isDark ? 'text-emerald-200' : 'text-slate-950'}
+        />
+        <h1 className={`mt-4 text-lg font-semibold leading-tight ${isDark ? 'text-slate-50' : 'text-slate-950'}`}>{title}</h1>
+        <p className={`mt-1.5 text-[11px] leading-5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{description}</p>
       </div>
-      <nav className="min-h-0 space-y-2 overflow-y-auto pr-2">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {links.map((link) => (
           <NavLink
             key={link.to}
@@ -36,14 +44,34 @@ function SidebarContent({ portalLabel, title, description, links, onNavigate }: 
             onClick={onNavigate}
             className={({ isActive }) => {
               const resolvedActive = link.isActiveForPath ? link.isActiveForPath(location.pathname) : isActive;
-              return `block rounded-2xl px-4 py-3 text-sm font-medium transition ${resolvedActive
-                ? 'bg-white text-slate-950 shadow-lg shadow-white/10 dark:bg-slate-800 dark:text-white dark:shadow-slate-950/40'
-                : 'text-slate-200 hover:bg-white/10 hover:text-white'
-                }`;
+              const activeClasses = isDark
+                ? 'bg-slate-800/80 text-slate-50 shadow-sm shadow-black/20'
+                : 'bg-blue-100/70 text-slate-950 shadow-sm shadow-blue-200/40';
+              const inactiveClasses = isDark
+                ? 'text-slate-300 hover:bg-slate-800/55 hover:text-white'
+                : 'text-slate-600 hover:bg-white/80 hover:text-slate-950';
+
+              return `group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${resolvedActive ? activeClasses : inactiveClasses}`;
             }}
             end={!link.isActiveForPath}
           >
-            {link.label}
+            {({ isActive }) => {
+              const resolvedActive = link.isActiveForPath ? link.isActiveForPath(location.pathname) : isActive;
+              const Icon = getNavigationIcon(link.label);
+
+              return (
+                <>
+                  <span
+                    aria-hidden
+                    className={`absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full transition ${
+                      resolvedActive ? 'bg-indigo-500 opacity-100' : 'bg-transparent opacity-0'
+                    }`}
+                  />
+                  <Icon className={`h-4 w-4 shrink-0 transition ${resolvedActive ? (isDark ? 'text-slate-50' : 'text-indigo-700') : ''}`} aria-hidden />
+                  <span className="min-w-0 truncate">{link.label}</span>
+                </>
+              );
+            }}
           </NavLink>
         ))}
       </nav>
@@ -53,7 +81,9 @@ function SidebarContent({ portalLabel, title, description, links, onNavigate }: 
 
 export function RoleSidebar({ portalLabel, title, description, links, mobileOpen = false, onClose, desktopCollapsed = false }: RoleSidebarProps) {
   const location = useLocation();
+  const { resolvedTheme } = useTheme();
   const previousPathname = useRef(location.pathname);
+  const isDark = resolvedTheme === 'dark';
 
   useEffect(() => {
     if (mobileOpen && previousPathname.current !== location.pathname) {
@@ -95,17 +125,29 @@ export function RoleSidebar({ portalLabel, title, description, links, mobileOpen
           aria-label="Close navigation menu"
         />
         <aside
-          className={`absolute inset-y-0 left-0 flex w-[min(88vw,22rem)] flex-col border-r border-white/10 bg-slate-950 px-5 py-6 text-white shadow-2xl shadow-slate-900/30 transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          className={`absolute inset-y-0 left-0 flex w-[min(86vw,16.5rem)] flex-col border-r shadow-2xl backdrop-blur-2xl transition-transform duration-300 ease-out ${
+            isDark
+              ? 'border-slate-800 bg-slate-950/90 text-slate-100 shadow-black/40'
+              : 'border-slate-200 bg-slate-50/95 text-slate-900 shadow-slate-900/20'
+          } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
         >
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-200">Menu</p>
+          <div className={`flex items-center justify-between gap-3 border-b px-4 py-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+            <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Menu</p>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-white/15 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition ${
+                isDark
+                  ? 'border-slate-700 text-slate-200 hover:bg-slate-800'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+              }`}
+              aria-label="Close navigation menu"
             >
-              Close
+              {(() => {
+                const Icon = getNavigationIcon('close');
+                return <Icon className="h-4 w-4 rotate-180" aria-hidden />;
+              })()}
             </button>
           </div>
           <SidebarContent portalLabel={portalLabel} title={title} description={description} links={links} onNavigate={onClose} />
@@ -117,10 +159,16 @@ export function RoleSidebar({ portalLabel, title, description, links, mobileOpen
         aria-hidden={desktopCollapsed}
       >
         <div
-          className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-in-out ${desktopCollapsed ? 'max-w-0 -translate-x-4 opacity-0' : 'max-w-xs translate-x-0 opacity-100'
+          className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-in-out ${desktopCollapsed ? 'max-w-0 -translate-x-5 opacity-0' : 'max-w-[260px] translate-x-0 opacity-100'
             }`}
         >
-          <aside className="w-full rounded-[28px] border border-white/70 bg-slate-950 px-5 py-6 text-white shadow-2xl shadow-slate-900/20 lg:flex lg:h-[calc(100vh-3rem)] lg:overflow-hidden">
+          <aside
+            className={`w-[260px] overflow-hidden rounded-[24px] border shadow-xl backdrop-blur-2xl lg:flex lg:h-[calc(100vh-3rem)] ${
+              isDark
+                ? 'border-slate-800/90 bg-slate-950/75 text-slate-100 shadow-black/25'
+                : 'border-slate-200/90 bg-slate-50/90 text-slate-900 shadow-slate-900/10'
+            }`}
+          >
             <SidebarContent portalLabel={portalLabel} title={title} description={description} links={links} />
           </aside>
         </div>

@@ -9,6 +9,7 @@ import { SectionCard } from '../../components/common/SectionCard';
 import { TagBadge } from '../../components/common/TagBadge';
 import { useSubjectsQuery } from '../../hooks/useTeacherQueries';
 import type { GeneratedQuestionPreview } from '../../types/api';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 type AIForm = {
   subjectId: string;
@@ -78,7 +79,7 @@ export function AIGenerateQuestionsPage() {
           <select {...form.register('difficulty')} className="rounded-2xl border border-slate-200 px-4 py-3"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>
           <input type="number" min={1} max={20} {...form.register('count', { valueAsNumber: true })} className="rounded-2xl border border-slate-200 px-4 py-3" />
           <textarea {...form.register('customInstructions')} placeholder="Optional instructions for the generator" rows={4} className="rounded-2xl border border-slate-200 px-4 py-3 lg:col-span-2" />
-          <button type="submit" disabled={generateMutation.isPending} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 lg:col-span-2">{generateMutation.isPending ? 'Generating...' : 'Generate preview'}</button>
+          <button type="submit" disabled={generateMutation.isPending} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 lg:col-span-2"><IconLabel label={generateMutation.isPending ? 'Generating...' : 'Generate preview'} icon={appIcons.Sparkles} /></button>
         </form>
       </SectionCard>
 
@@ -92,7 +93,7 @@ export function AIGenerateQuestionsPage() {
             disabled={saveMutation.isPending || selectedQuestions.length === 0 || alreadySavedCurrentPreview}
             className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saveMutation.isPending ? 'Saving...' : alreadySavedCurrentPreview ? 'Saved' : `Save ${selectedQuestions.length} selected`}
+            <IconLabel label={saveMutation.isPending ? 'Saving...' : alreadySavedCurrentPreview ? 'Saved' : `Save ${selectedQuestions.length} selected`} icon={alreadySavedCurrentPreview ? appIcons.CheckCircle2 : appIcons.Save} />
           </button>
         ) : null}
       >

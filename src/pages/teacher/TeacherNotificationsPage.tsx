@@ -5,12 +5,13 @@ import toast from 'react-hot-toast';
 import { deleteNotification, markAllNotificationsRead, markNotificationRead } from '../../api/notificationService';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
-import { PaginationControls } from '../../components/common/PaginationControls';
+import { PaginationFooter } from '../../components/common/PaginationFooter';
 import { SectionCard } from '../../components/common/SectionCard';
 import { useNotificationsQuery } from '../../hooks/useNotificationQueries';
 import type { NotificationResponse, PaginatedResponse, UnreadCountResponse } from '../../types/api';
 import { formatDateTime } from '../../utils/formatters';
 import { resolveNotificationTarget } from '../../utils/resolveNotificationTarget';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 export function TeacherNotificationsPage() {
   const [page, setPage] = useState(1);
@@ -93,7 +94,7 @@ export function TeacherNotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Notifications" eyebrow="Teacher inbox" action={<button type="button" onClick={() => markAllMutation.mutate()} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Mark all read</button>}>
+      <SectionCard title="Notifications" eyebrow="Teacher inbox" action={<button type="button" onClick={() => markAllMutation.mutate()} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"><IconLabel label="Mark all read" icon={appIcons.CheckCircle2} /></button>}>
         <p className="max-w-2xl text-sm leading-7 text-slate-600">Exam updates, publishing events, and workflow alerts appear here.</p>
       </SectionCard>
       {data.items.length === 0 ? (
@@ -106,18 +107,18 @@ export function TeacherNotificationsPage() {
                 <div>
                   <p className="text-lg font-semibold text-slate-900">{item.title || item.type || 'Notification'}</p>
                   <p className="mt-2 text-sm text-slate-600">{item.message || 'Open this update to view the latest details.'}</p>
-                  <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{formatDateTime(item.sentAt)}</p>
+                  <p className="mt-3 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500"><appIcons.CalendarClock className="h-4 w-4" aria-hidden />{formatDateTime(item.sentAt)}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => openNotification(item.id, item.type, item.relatedId)} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Open related</button>
-                  <button type="button" onClick={() => deleteMutation.mutate(item.id)} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200">Delete</button>
+                  <button type="button" onClick={() => openNotification(item.id, item.type, item.relatedId)} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"><IconLabel label="Open related" icon={appIcons.Eye} /></button>
+                  <button type="button" onClick={() => deleteMutation.mutate(item.id)} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200"><IconLabel label="Delete" icon={appIcons.Trash2} /></button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
-      <PaginationControls page={page} total={data.total} limit={data.limit} onPageChange={setPage} />
+      <PaginationFooter page={page} total={data.total} size={data.size} pages={data.pages} limit={data.size} onPageChange={setPage} />
     </div>
   );
 }

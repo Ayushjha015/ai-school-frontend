@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { z } from 'zod';
 import { PublicPageShell } from '../../components/public/PublicPageShell';
 import { useTheme } from '../../theme/ThemeProvider';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 const registerOrgSchema = z.object({
   organizationName: z.string().min(2, 'Enter your organization name'),
@@ -113,7 +114,7 @@ export function RegisterOrgPage() {
               disabled={form.formState.isSubmitting}
               className={`inline-flex w-full justify-center rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? 'bg-emerald-300 text-slate-950 hover:bg-emerald-200' : 'bg-slate-950 text-white hover:bg-slate-800'}`}
             >
-              {form.formState.isSubmitting ? 'Submitting request...' : 'Submit organization request'}
+              <IconLabel label={form.formState.isSubmitting ? 'Submitting request...' : 'Submit organization request'} icon={appIcons.Send} />
             </button>
           </form>
         </section>
@@ -142,7 +143,7 @@ export function RegisterOrgPage() {
               to="/login"
               className={`mt-4 inline-flex rounded-full px-5 py-2.5 text-sm font-semibold transition ${isDark ? 'bg-slate-100 text-slate-950 hover:bg-white' : 'bg-slate-950 text-white hover:bg-slate-800'}`}
             >
-              Go to login
+              <IconLabel label="Go to login" icon={appIcons.LogIn} />
             </Link>
           </div>
         </section>

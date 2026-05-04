@@ -5,6 +5,7 @@ import type {
   FullResultResponse,
   PaginatedResponse,
   ResultSummary,
+  StudentExamCategory,
   StudentExamDetails,
   StudentExamListResponse,
   StudentDashboardResponse,
@@ -15,8 +16,10 @@ import type {
 import { api } from './baseClient';
 import { unwrapApiResponse } from './helpers';
 
-export async function getStudentExams() {
-  const response = await api.get<StudentExamListResponse>('/exams/student');
+export async function getStudentExams(category: StudentExamCategory, page = 1, limit = 10) {
+  const response = await api.get<StudentExamListResponse>('/exams/student', {
+    params: { category, page, limit },
+  });
   return unwrapApiResponse(response);
 }
 

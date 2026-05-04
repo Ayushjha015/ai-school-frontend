@@ -6,13 +6,12 @@ import { StatCard } from '../../components/common/StatCard';
 import { TagBadge } from '../../components/common/TagBadge';
 import { TopicBarList } from '../../components/common/TopicBarList';
 import { useResultDetailQuery } from '../../hooks/useStudentQueries';
-import { loadAttemptSession } from '../../utils/attemptSession';
 import { formatDateTime, formatPercentage } from '../../utils/formatters';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 export function ResultDetailPage() {
   const { attemptId = '' } = useParams();
   const { data, isLoading, isError } = useResultDetailQuery(attemptId);
-  const snapshot = attemptId ? loadAttemptSession(attemptId) : null;
 
   if (isLoading) {
     return <LoadingScreen label="Loading your result details..." />;
@@ -22,11 +21,6 @@ export function ResultDetailPage() {
     return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load this result detail.</div>;
   }
 
-  const optionLabelMap = new Map<string, string>();
-  snapshot?.questions.forEach((question) => {
-    question.options.forEach((option) => optionLabelMap.set(`${question.id}:${option.id}`, option.optionText));
-  });
-
   return (
     <div className="space-y-6">
       <SectionCard
@@ -34,7 +28,7 @@ export function ResultDetailPage() {
         eyebrow="Completed exam"
         action={
           <Link className="text-sm font-semibold text-slate-700 hover:text-slate-950" to={`/student/exams/${data.examId}/leaderboard`}>
-            View leaderboard
+            <IconLabel label="View leaderboard" icon={appIcons.Eye} />
           </Link>
         }
       >
@@ -57,8 +51,8 @@ export function ResultDetailPage() {
           ) : (
             <div className="space-y-4">
               {data.answers.map((answer, index) => {
-                const selectedText = answer.selectedOptionId ? optionLabelMap.get(`${answer.questionId}:${answer.selectedOptionId}`) ?? answer.selectedOptionId : 'Not answered';
-                const correctText = answer.correctOptionId ? optionLabelMap.get(`${answer.questionId}:${answer.correctOptionId}`) ?? answer.correctOptionId : 'Not available';
+                const selectedText = answer.selectedOptionText ?? (answer.selectedOptionId ? answer.selectedOptionId : 'Not answered');
+                const correctText = answer.correctOptionText ?? (answer.correctOptionId ? answer.correctOptionId : 'Not available');
                 return (
                   <div key={`${answer.questionId}-${index}`} className="rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">

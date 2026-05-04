@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import type { ValidationErrorResponse } from '../../types/api';
 import { parseValidationErrors } from '../../utils/parseValidationErrors';
 import { getRoleDashboard } from '../../utils/roleRedirect';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -129,7 +130,7 @@ export function LoginPage() {
                 disabled={form.formState.isSubmitting || status === 'loading'}
                 className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {form.formState.isSubmitting || status === 'loading' ? 'Signing in...' : 'Secure sign in'}
+                <IconLabel label={form.formState.isSubmitting || status === 'loading' ? 'Signing in...' : 'Secure sign in'} icon={appIcons.LogIn} />
               </button>
             </form>
 
@@ -137,7 +138,7 @@ export function LoginPage() {
               After sign-in, the app will take you to the right workspace automatically based on your assigned role.
             </p>
             <Link to="/" className="mt-4 inline-flex text-sm font-semibold text-slate-200 underline-offset-4 hover:underline lg:text-slate-700">
-              Return to homepage
+              <IconLabel label="Return to homepage" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" />
             </Link>
           </div>
         </section>

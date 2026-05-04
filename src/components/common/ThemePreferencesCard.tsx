@@ -1,10 +1,11 @@
 import { useTheme, type ThemeMode } from '../../theme/ThemeProvider';
 import { SectionCard } from './SectionCard';
+import { appIcons } from '../../utils/appIcons';
 
-const options: Array<{ value: ThemeMode; label: string; description: string }> = [
-  { value: 'light', label: 'Light', description: 'Keep the current bright workspace theme.' },
-  { value: 'dark', label: 'Dark', description: 'Use the new dark appearance for lower-light viewing.' },
-  { value: 'system', label: 'System default', description: 'Follow your device theme automatically.' },
+const options: Array<{ value: ThemeMode; label: string; description: string; icon: typeof appIcons.Sun }> = [
+  { value: 'light', label: 'Light', description: 'Keep the current bright workspace theme.', icon: appIcons.Sun },
+  { value: 'dark', label: 'Dark', description: 'Use the new dark appearance for lower-light viewing.', icon: appIcons.Moon },
+  { value: 'system', label: 'System default', description: 'Follow your device theme automatically.', icon: appIcons.Monitor },
 ];
 
 export function ThemePreferencesCard() {
@@ -28,6 +29,7 @@ export function ThemePreferencesCard() {
         <div className="grid gap-3 md:grid-cols-3">
           {options.map((option) => {
             const isSelected = mode === option.value;
+            const Icon = option.icon;
 
             return (
               <button
@@ -40,7 +42,7 @@ export function ThemePreferencesCard() {
                     : unselectedClasses
                 }`}
               >
-                <p className="text-sm font-semibold">{option.label}</p>
+                <p className="inline-flex items-center gap-2 text-sm font-semibold"><Icon className="h-4 w-4" aria-hidden />{option.label}</p>
                 <p className={`mt-2 text-sm leading-6 ${isSelected ? (resolvedTheme === 'dark' ? 'text-slate-300' : 'text-slate-600') : resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                   {option.description}
                 </p>

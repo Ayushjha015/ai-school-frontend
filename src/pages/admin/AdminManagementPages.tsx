@@ -20,7 +20,7 @@ import {
 } from '../../api/adminService';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
-import { PaginationControls } from '../../components/common/PaginationControls';
+import { PaginationFooter } from '../../components/common/PaginationFooter';
 import { SectionCard } from '../../components/common/SectionCard';
 import { StatCard } from '../../components/common/StatCard';
 import { TopicBarList } from '../../components/common/TopicBarList';
@@ -43,11 +43,13 @@ import type { ValidationErrorResponse } from '../../types/api';
 import { formatDateTime, formatPercentage, formatRoleLabel } from '../../utils/formatters';
 import { parseValidationErrors } from '../../utils/parseValidationErrors';
 import { getStatusAccent, getStatusTone } from '../../utils/statusStyles';
+import { IconLabel, appIcons } from '../../utils/appIcons';
 
 const teacherSchema = z.object({
   name: z.string().min(2, 'Enter the teacher name'),
   email: z.string().email('Enter a valid email'),
   password: z.string().min(8, 'Use at least 8 characters'),
+  groupIds: z.array(z.string()).min(1, 'Select at least one class'),
   phone: z.string().optional(),
 });
 
@@ -101,15 +103,16 @@ function applyFormValidationErrors<FormValues extends Record<string, unknown>>(
 
 export function AdminTeachersPage() {
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
-  const { data, isLoading, isError } = useAdminTeachersQuery(page, 12, search.trim() || undefined);
+  const { data, isLoading, isError } = useAdminTeachersQuery(page, limit, search.trim() || undefined);
 
   if (isLoading) return <LoadingScreen label="Loading teachers..." />;
   if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Teacher data is unavailable right now.</div>;
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Teachers" eyebrow="Organization faculty" action={<Link to="/admin/teachers/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Add teacher</Link>}>
+      <SectionCard title="Teachers" eyebrow="Organization faculty" action={<Link to="/admin/teachers/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Add teacher" /></Link>}>
         <input
           value={search}
           onChange={(event) => {
@@ -119,30 +122,61 @@ export function AdminTeachersPage() {
           placeholder="Search teachers by name or email"
           className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
         />
+
+        {data.items.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState title="No teachers found" description="Adjust the search or create a teacher to populate the organization roster." actionLabel="Add teacher" actionTo="/admin/teachers/new" />
+          </div>
+        ) : (
+          <>
+          <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="overflow-x-auto">
+              <table className="min-w-[860px] w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
+                  <tr>
+                    <th className="px-5 py-4">S.No</th>
+                    <th className="px-5 py-4">Teacher</th>
+                    <th className="px-5 py-4">Email</th>
+                    <th className="px-5 py-4">Branch</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Created at</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {data.items.map((teacher, index) => (
+                    <tr key={teacher.id} className="text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900/70">
+                      <td className="px-5 py-4 text-xs font-semibold text-slate-400">{(page - 1) * data.size + index + 1}</td>
+                      <td className="px-5 py-4">
+                        <Link to={`/admin/teachers/${teacher.id}`} className="font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-slate-100 dark:hover:text-emerald-300">{teacher.name}</Link>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{teacher.phone ?? 'Phone not provided'}</p>
+                      </td>
+                      <td className="px-5 py-4 break-words text-slate-600 dark:text-slate-400 [overflow-wrap:anywhere]">{teacher.email}</td>
+                      <td className="px-5 py-4">{teacher.branchName ?? '—'}</td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${getStatusTone(teacher.isActive ? 'active' : 'inactive')}`}>{teacher.isActive ? 'Active' : 'Inactive'}</span>
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-400">{formatDateTime(teacher.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <PaginationFooter
+            page={page}
+            total={data.total}
+            size={data.size}
+            pages={data.pages}
+            limit={limit}
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit);
+              setPage(1);
+            }}
+            onPageChange={setPage}
+          />
+          </>
+        )}
       </SectionCard>
-
-      {data.items.length === 0 ? (
-        <EmptyState title="No teachers found" description="Adjust the search or create a teacher to populate the organization roster." actionLabel="Add teacher" actionTo="/admin/teachers/new" />
-      ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {data.items.map((teacher) => (
-            <Link key={teacher.id} to={`/admin/teachers/${teacher.id}`} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-950/70 dark:hover:border-slate-600">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{teacher.name}</h3>
-                  <p className="mt-2 break-words text-sm text-slate-600 dark:text-slate-400 [overflow-wrap:anywhere]">{teacher.email}</p>
-                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{teacher.phone ?? 'Phone not provided'}</p>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusTone(teacher.isActive ? 'active' : 'inactive')}`}>
-                  {teacher.isActive ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <PaginationControls page={page} total={data.total} limit={data.limit} onPageChange={setPage} />
     </div>
   );
 }
@@ -150,30 +184,85 @@ export function AdminTeachersPage() {
 export function AdminCreateTeacherPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const groupsQuery = useAdminGroupsQuery(1, 100);
   const form = useForm<TeacherForm>({
     resolver: zodResolver(teacherSchema),
-    defaultValues: { name: '', email: '', password: '', phone: '' },
+    defaultValues: { name: '', email: '', password: '', groupIds: [], phone: '' },
   });
+  const groups = groupsQuery.data?.items ?? [];
+  const selectedGroupIds = form.watch('groupIds') ?? [];
+
+  function toggleTeacherGroup(groupId: string) {
+    const nextGroupIds = selectedGroupIds.includes(groupId)
+      ? selectedGroupIds.filter((id) => id !== groupId)
+      : [...selectedGroupIds, groupId];
+
+    form.setValue('groupIds', nextGroupIds, { shouldDirty: true, shouldValidate: true });
+  }
 
   const mutation = useMutation({
     mutationFn: createTeacher,
     onSuccess: async (teacher) => {
       toast.success('Teacher created.');
       await queryClient.invalidateQueries({ queryKey: ['admin', 'teachers'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] });
       navigate(`/admin/teachers/${teacher.id}`);
     },
-    onError: () => toast.error('Unable to create the teacher right now.'),
+    onError: (error) => {
+      if (applyFormValidationErrors<TeacherForm>(error, form.setError)) {
+        return;
+      }
+
+      const axiosError = error as AxiosError;
+      if (axiosError.response?.status === 404) {
+        form.setError('groupIds', { type: 'server', message: 'One or more selected classes were not found. Choose valid classes.' });
+        toast.error('One or more selected classes were not found.');
+        return;
+      }
+
+      toast.error('Unable to create the teacher right now.');
+    },
   });
 
   return (
     <SectionCard title="Add teacher" eyebrow="Faculty onboarding">
       <form className="grid gap-4 md:max-w-2xl" onSubmit={form.handleSubmit((values) => mutation.mutate({ ...values, phone: values.phone || null }))}>
         <input {...form.register('name')} placeholder="Teacher name" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
+        {form.formState.errors.name ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.name.message}</p> : null}
         <input {...form.register('email')} placeholder="Teacher email" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
+        {form.formState.errors.email ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.email.message}</p> : null}
         <input type="password" {...form.register('password')} placeholder="Temporary password" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
+        {form.formState.errors.password ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.password.message}</p> : null}
+        <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700 dark:bg-slate-950/70">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Assign classes</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{selectedGroupIds.length} selected</span>
+          </div>
+          <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
+            {groupsQuery.isLoading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading classes...</p> : null}
+            {groups.map((group) => {
+              const checked = selectedGroupIds.includes(group.id);
+              return (
+                <label key={group.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm transition ${checked ? 'border-emerald-400 bg-emerald-50 text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200' : 'border-slate-200 text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'}`}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleTeacherGroup(group.id)}
+                    disabled={groupsQuery.isLoading || groupsQuery.isError}
+                    className="h-4 w-4 accent-emerald-500"
+                  />
+                  <span className="font-medium">{group.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+        {form.formState.errors.groupIds ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.groupIds.message}</p> : null}
+        {groupsQuery.isError ? <p className="-mt-2 text-sm text-rose-500">Unable to load classes. Try again before creating a teacher.</p> : null}
+        {!groupsQuery.isLoading && !groupsQuery.isError && groups.length === 0 ? <p className="-mt-2 text-sm text-amber-500">Create a class before adding a teacher.</p> : null}
         <input {...form.register('phone')} placeholder="Phone (optional)" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
-        <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-          {mutation.isPending ? 'Creating...' : 'Create teacher'}
+        <button type="submit" disabled={mutation.isPending || groupsQuery.isLoading || groupsQuery.isError || groups.length === 0} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
+          <IconLabel label={mutation.isPending ? 'Creating...' : 'Create teacher'} />
         </button>
       </form>
     </SectionCard>
@@ -224,7 +313,7 @@ export function AdminTeacherDetailPage() {
             Teacher account is active
           </label>
           <button type="submit" disabled={updateMutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-            {updateMutation.isPending ? 'Saving...' : 'Save changes'}
+            <IconLabel label={updateMutation.isPending ? 'Saving...' : 'Save changes'} icon={appIcons.Save} />
           </button>
         </form>
       </SectionCard>
@@ -234,9 +323,10 @@ export function AdminTeacherDetailPage() {
 
 export function AdminStudentsPage() {
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
   const [groupId, setGroupId] = useState('');
-  const studentsQuery = useAdminStudentsQuery({ groupId: groupId || undefined, page, limit: 12, search: search.trim() || undefined });
+  const studentsQuery = useAdminStudentsQuery({ groupId: groupId || undefined, page, limit, search: search.trim() || undefined });
   const groupsQuery = useAdminGroupsQuery(1, 100);
 
   if (studentsQuery.isLoading || groupsQuery.isLoading) return <LoadingScreen label="Loading students..." />;
@@ -246,7 +336,7 @@ export function AdminStudentsPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Students" eyebrow="Organization roster" action={<Link to="/admin/students/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Add student</Link>}>
+      <SectionCard title="Students" eyebrow="Organization roster" action={<Link to="/admin/students/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Add student" /></Link>}>
         <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
           <input
             value={search}
@@ -269,30 +359,61 @@ export function AdminStudentsPage() {
             {groupsQuery.data.items.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
         </div>
+
+        {studentsQuery.data.items.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState title="No students found" description="Adjust the search or class filter, or create a student." actionLabel="Add student" actionTo="/admin/students/new" />
+          </div>
+        ) : (
+          <>
+          <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="overflow-x-auto">
+              <table className="min-w-[920px] w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
+                  <tr>
+                    <th className="px-5 py-4">S.No</th>
+                    <th className="px-5 py-4">Student</th>
+                    <th className="px-5 py-4">Email</th>
+                    <th className="px-5 py-4">Class</th>
+                    <th className="px-5 py-4">Roll no</th>
+                    <th className="px-5 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {studentsQuery.data.items.map((student, index) => (
+                    <tr key={student.id} className="text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900/70">
+                      <td className="px-5 py-4 text-xs font-semibold text-slate-400">{(page - 1) * studentsQuery.data.size + index + 1}</td>
+                      <td className="px-5 py-4">
+                        <Link to={`/admin/students/${student.id}`} className="font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-slate-100 dark:hover:text-emerald-300">{student.name}</Link>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{student.branchName ?? 'Branch not assigned'}</p>
+                      </td>
+                      <td className="px-5 py-4 break-words text-slate-600 dark:text-slate-400 [overflow-wrap:anywhere]">{student.email}</td>
+                      <td className="px-5 py-4 font-semibold">{student.groupName ?? 'Class not assigned'}</td>
+                      <td className="px-5 py-4">{student.rollNumber ?? 'Not assigned'}</td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${getStatusTone(student.isActive ? 'active' : 'inactive')}`}>{student.isActive ? 'Active' : 'Inactive'}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <PaginationFooter
+            page={page}
+            total={studentsQuery.data.total}
+            size={studentsQuery.data.size}
+            pages={studentsQuery.data.pages}
+            limit={limit}
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit);
+              setPage(1);
+            }}
+            onPageChange={setPage}
+          />
+          </>
+        )}
       </SectionCard>
-
-      {studentsQuery.data.items.length === 0 ? (
-        <EmptyState title="No students found" description="Adjust the search or class filter, or create a student." actionLabel="Add student" actionTo="/admin/students/new" />
-      ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {studentsQuery.data.items.map((student) => (
-            <Link key={student.id} to={`/admin/students/${student.id}`} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-950/70 dark:hover:border-slate-600">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{student.name}</h3>
-                  <p className="mt-2 break-words text-sm text-slate-600 dark:text-slate-400 [overflow-wrap:anywhere]">{student.email}</p>
-                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Roll number: {student.rollNumber ?? 'Not assigned'}</p>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusTone(student.isActive ? 'active' : 'inactive')}`}>
-                  {student.isActive ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <PaginationControls page={page} total={studentsQuery.data.total} limit={studentsQuery.data.limit} onPageChange={setPage} />
     </div>
   );
 }
@@ -367,7 +488,7 @@ export function AdminCreateStudentPage() {
         {form.formState.errors.parentPhone ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.parentPhone.message}</p> : null}
         <input {...form.register('phone')} placeholder="Phone (optional)" className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
         <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-          {mutation.isPending ? 'Creating...' : 'Create student'}
+          <IconLabel label={mutation.isPending ? 'Creating...' : 'Create student'} />
         </button>
       </form>
     </SectionCard>
@@ -406,7 +527,7 @@ export function AdminStudentDetailPage() {
         eyebrow="Student detail"
         action={
           <button type="button" onClick={() => deactivateMutation.mutate()} disabled={deactivateMutation.isPending} className="rounded-full border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-400 disabled:opacity-60">
-            {deactivateMutation.isPending ? 'Updating...' : student.isActive ? 'Deactivate student' : 'Deactivate again'}
+            <IconLabel label={deactivateMutation.isPending ? 'Updating...' : student.isActive ? 'Deactivate student' : 'Deactivate again'} icon={student.isActive ? appIcons.Trash2 : appIcons.CheckCircle2} />
           </button>
         }
       >
@@ -497,10 +618,10 @@ export function AdminBulkUploadPage() {
           />
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={() => templateMutation.mutate()} disabled={templateMutation.isPending} className="w-full rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 sm:w-auto">
-              {templateMutation.isPending ? 'Downloading...' : 'Download CSV template'}
+              <IconLabel label={templateMutation.isPending ? 'Downloading...' : 'Download CSV template'} icon={appIcons.Download} />
             </button>
             <button type="button" onClick={() => mutation.mutate()} disabled={!selectedFile || mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-              {mutation.isPending ? 'Uploading...' : 'Upload CSV'}
+              <IconLabel label={mutation.isPending ? 'Uploading...' : 'Upload CSV'} icon={appIcons.Upload} />
             </button>
           </div>
         </div>
@@ -525,31 +646,66 @@ export function AdminBulkUploadPage() {
 
 export function AdminGroupsPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading, isError } = useAdminGroupsQuery(page, 12);
+  const [limit, setLimit] = useState(10);
+  const { data, isLoading, isError } = useAdminGroupsQuery(page, limit);
 
   if (isLoading) return <LoadingScreen label="Loading classes..." />;
   if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">Class data is unavailable right now.</div>;
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Classes" eyebrow="Academic structure" action={<Link to="/admin/groups/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Create class</Link>}>
+      <SectionCard title="Classes" eyebrow="Academic structure" action={<Link to="/admin/groups/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Create class" /></Link>}>
         <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">Review the academic classes in your organization, then open a class to assign teachers, add students, and inspect roster performance.</p>
+
+        {data.items.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState title="No classes found" description="Create the first class to start organizing teachers and students." actionLabel="Create class" actionTo="/admin/groups/new" />
+          </div>
+        ) : (
+          <>
+          <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="overflow-x-auto">
+              <table className="min-w-[860px] w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
+                  <tr>
+                    <th className="px-5 py-4">S.No</th>
+                    <th className="px-5 py-4">Class</th>
+                    <th className="px-5 py-4">Branch</th>
+                    <th className="px-5 py-4">Organization</th>
+                    <th className="px-5 py-4">Created at</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {data.items.map((group, index) => (
+                    <tr key={group.id} className="text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900/70">
+                      <td className="px-5 py-4 text-xs font-semibold text-slate-400">{(page - 1) * data.size + index + 1}</td>
+                      <td className="px-5 py-4">
+                        <Link to={`/admin/groups/${group.id}`} className="font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-slate-100 dark:hover:text-emerald-300">{group.name}</Link>
+                      </td>
+                      <td className="px-5 py-4">{group.branchName ?? '—'}</td>
+                      <td className="px-5 py-4">{group.organizationName ?? '—'}</td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-400">{formatDateTime(group.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <PaginationFooter
+            page={page}
+            total={data.total}
+            size={data.size}
+            pages={data.pages}
+            limit={limit}
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit);
+              setPage(1);
+            }}
+            onPageChange={setPage}
+          />
+          </>
+        )}
       </SectionCard>
-
-      {data.items.length === 0 ? (
-        <EmptyState title="No classes found" description="Create the first class to start organizing teachers and students." actionLabel="Create class" actionTo="/admin/groups/new" />
-      ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {data.items.map((group) => (
-            <Link key={group.id} to={`/admin/groups/${group.id}`} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-950/70 dark:hover:border-slate-600">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{group.name}</h3>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Created {formatDateTime(group.createdAt)}</p>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <PaginationControls page={page} total={data.total} limit={data.limit} onPageChange={setPage} />
     </div>
   );
 }
@@ -588,7 +744,7 @@ export function AdminCreateGroupPage() {
         </select>
         {form.formState.errors.branchId ? <p className="-mt-2 text-sm text-rose-500">{form.formState.errors.branchId.message}</p> : null}
         <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto">
-          {mutation.isPending ? 'Creating...' : 'Create class'}
+          <IconLabel label={mutation.isPending ? 'Creating...' : 'Create class'} />
         </button>
       </form>
     </SectionCard>
@@ -672,7 +828,7 @@ export function AdminGroupDetailPage() {
                 {teachersQuery.data.items.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
               </select>
               <button type="button" onClick={() => assignTeacherMutation.mutate()} disabled={!teacherId || assignTeacherMutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
-                {assignTeacherMutation.isPending ? 'Assigning...' : 'Assign teacher'}
+                <IconLabel label={assignTeacherMutation.isPending ? 'Assigning...' : 'Assign teacher'} />
               </button>
             </div>
           </SectionCard>
@@ -699,7 +855,7 @@ export function AdminGroupDetailPage() {
                     })}
                   </div>
                   <button type="button" onClick={() => addStudentsMutation.mutate()} disabled={selectedStudentIds.length === 0 || addStudentsMutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
-                    {addStudentsMutation.isPending ? 'Adding...' : 'Add selected students'}
+                    <IconLabel label={addStudentsMutation.isPending ? 'Adding...' : 'Add selected students'} />
                   </button>
                 </>
               )}
@@ -754,7 +910,7 @@ export function AdminSubjectsPage() {
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
             <input {...form.register('name')} placeholder="Subject name" className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
             <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
-              {mutation.isPending ? 'Creating...' : 'Create subject'}
+              <IconLabel label={mutation.isPending ? 'Creating...' : 'Create subject'} />
             </button>
           </form>
         </SectionCard>
