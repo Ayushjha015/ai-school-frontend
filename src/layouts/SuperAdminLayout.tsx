@@ -4,12 +4,33 @@ import { RoleSidebar } from '../components/role/RoleSidebar';
 import { RoleTopbar } from '../components/role/RoleTopbar';
 import { useDesktopSidebar } from '../hooks/useDesktopSidebar';
 
+function isSuperAdminSectionActive(pathname: string, section: string) {
+  return pathname === `/super-admin/${section}` || pathname.startsWith(`/super-admin/${section}/`);
+}
+
 const links = [
   { to: '/super-admin/dashboard', label: 'Dashboard' },
-  { to: '/super-admin/organizations', label: 'Organizations' },
-  { to: '/super-admin/tags', label: 'Tags' },
-  { to: '/super-admin/organizations/new', label: 'Create Organization' },
-  { to: '/super-admin/org-admins/new', label: 'Create Org Admin' },
+  {
+    to: '/super-admin/organizations',
+    label: 'Organizations',
+    isActiveForPath: (pathname: string) =>
+      isSuperAdminSectionActive(pathname, 'organizations') && pathname !== '/super-admin/organizations/new',
+  },
+  {
+    to: '/super-admin/tags',
+    label: 'Tags',
+    isActiveForPath: (pathname: string) => isSuperAdminSectionActive(pathname, 'tags'),
+  },
+  {
+    to: '/super-admin/organizations/new',
+    label: 'Create Organization',
+    isActiveForPath: (pathname: string) => pathname === '/super-admin/organizations/new',
+  },
+  {
+    to: '/super-admin/org-admins/new',
+    label: 'Create Org Admin',
+    isActiveForPath: (pathname: string) => pathname === '/super-admin/org-admins/new',
+  },
   { to: '/super-admin/settings', label: 'Settings' },
 ];
 

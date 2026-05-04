@@ -4,9 +4,17 @@ import { RoleSidebar } from '../components/role/RoleSidebar';
 import { RoleTopbar } from '../components/role/RoleTopbar';
 import { useDesktopSidebar } from '../hooks/useDesktopSidebar';
 
+function isParentSectionActive(pathname: string, section: string) {
+  return pathname === `/parent/${section}` || pathname.startsWith(`/parent/${section}/`);
+}
+
 const links = [
   { to: '/parent/dashboard', label: 'Dashboard' },
-  { to: '/parent/children', label: 'My Children' },
+  {
+    to: '/parent/children',
+    label: 'My Children',
+    isActiveForPath: (pathname: string) => isParentSectionActive(pathname, 'children'),
+  },
   { to: '/parent/notifications', label: 'Notifications' },
   { to: '/parent/profile', label: 'Profile' },
 ];

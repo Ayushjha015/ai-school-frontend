@@ -1,10 +1,26 @@
 import { RoleSidebar } from '../role/RoleSidebar';
 
+function isStudentSectionActive(pathname: string, section: string) {
+  return pathname === `/student/${section}` || pathname.startsWith(`/student/${section}/`);
+}
+
 const links = [
   { to: '/student/dashboard', label: 'Dashboard' },
-  { to: '/student/exams', label: 'My Exams' },
-  { to: '/student/results', label: 'My Results' },
-  { to: '/student/analytics', label: 'Analytics' },
+  {
+    to: '/student/exams',
+    label: 'My Exams',
+    isActiveForPath: (pathname: string) => isStudentSectionActive(pathname, 'exams'),
+  },
+  {
+    to: '/student/results',
+    label: 'My Results',
+    isActiveForPath: (pathname: string) => isStudentSectionActive(pathname, 'results'),
+  },
+  {
+    to: '/student/analytics',
+    label: 'Analytics',
+    isActiveForPath: (pathname: string) => isStudentSectionActive(pathname, 'analytics'),
+  },
   { to: '/student/notifications', label: 'Notifications' },
   { to: '/student/profile', label: 'Profile' },
 ];

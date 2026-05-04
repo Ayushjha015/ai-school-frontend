@@ -11,18 +11,22 @@ const links = [
   {
     to: '/teacher/questions',
     label: 'Question Bank',
-    isActiveForPath: (pathname: string) => pathname === '/teacher/questions' || pathname === '/teacher/questions/new',
+    isActiveForPath: (pathname: string) => pathname === '/teacher/questions' || pathname.startsWith('/teacher/questions/new'),
   },
   {
     to: '/teacher/questions/ai-generate',
     label: 'AI Generate',
-    isActiveForPath: (pathname: string) => pathname === '/teacher/questions/ai-generate',
+    isActiveForPath: (pathname: string) => pathname.startsWith('/teacher/questions/ai-generate'),
   },
-  { to: '/teacher/exams', label: 'Exams' },
+  {
+    to: '/teacher/exams',
+    label: 'Exams',
+    isActiveForPath: (pathname: string) => pathname === '/teacher/exams' || pathname.startsWith('/teacher/exams/'),
+  },
   {
     to: '/teacher/analytics',
     label: 'Analytics',
-    isActiveForPath: (pathname: string) => pathname === '/teacher/analytics' || pathname.startsWith('/teacher/analytics/students/'),
+    isActiveForPath: (pathname: string) => pathname === '/teacher/analytics' || pathname.startsWith('/teacher/analytics/'),
   },
   { to: '/teacher/notifications', label: 'Notifications' },
   { to: '/teacher/profile', label: 'Profile' },

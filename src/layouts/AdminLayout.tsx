@@ -4,15 +4,43 @@ import { RoleSidebar } from '../components/role/RoleSidebar';
 import { RoleTopbar } from '../components/role/RoleTopbar';
 import { useDesktopSidebar } from '../hooks/useDesktopSidebar';
 
+function isAdminSectionActive(pathname: string, section: string) {
+  return pathname === `/admin/${section}` || pathname.startsWith(`/admin/${section}/`);
+}
+
 const links = [
   { to: '/admin/dashboard', label: 'Dashboard' },
-  { to: '/admin/teachers', label: 'Teachers' },
-  { to: '/admin/students', label: 'Students' },
-  { to: '/admin/students/bulk-upload', label: 'Bulk Upload' },
-  { to: '/admin/groups', label: 'Classes' },
+  {
+    to: '/admin/teachers',
+    label: 'Teachers',
+    isActiveForPath: (pathname: string) => isAdminSectionActive(pathname, 'teachers'),
+  },
+  {
+    to: '/admin/students',
+    label: 'Students',
+    isActiveForPath: (pathname: string) => isAdminSectionActive(pathname, 'students') && pathname !== '/admin/students/bulk-upload',
+  },
+  {
+    to: '/admin/students/bulk-upload',
+    label: 'Bulk Upload',
+    isActiveForPath: (pathname: string) => pathname === '/admin/students/bulk-upload',
+  },
+  {
+    to: '/admin/groups',
+    label: 'Classes',
+    isActiveForPath: (pathname: string) => isAdminSectionActive(pathname, 'groups'),
+  },
   { to: '/admin/subjects', label: 'Subjects' },
-  { to: '/admin/exams', label: 'Exams' },
-  { to: '/admin/analytics', label: 'Analytics' },
+  {
+    to: '/admin/exams',
+    label: 'Exams',
+    isActiveForPath: (pathname: string) => isAdminSectionActive(pathname, 'exams'),
+  },
+  {
+    to: '/admin/analytics',
+    label: 'Analytics',
+    isActiveForPath: (pathname: string) => isAdminSectionActive(pathname, 'analytics'),
+  },
   { to: '/admin/notifications', label: 'Notifications' },
   { to: '/admin/settings', label: 'Settings' },
 ];
