@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { BrandBadge } from '../branding/BrandBadge';
-import { getNavigationIcon } from '../../utils/appIcons';
+import { appIcons, getNavigationIcon } from '../../utils/appIcons';
 import { useTheme } from '../../theme/ThemeProvider';
+import { useAuthStore } from '../../store/authStore';
 
 interface RoleLink {
   to: string;
@@ -22,8 +24,17 @@ interface RoleSidebarProps {
 
 function SidebarContent({ portalLabel, title, description, links, onNavigate }: { portalLabel: string; title: string; description: string; links: RoleLink[]; onNavigate?: () => void }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const logout = useAuthStore((state) => state.logout);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+
+  async function handleLogout() {
+    await logout();
+    onNavigate?.();
+    toast.success('Logged out successfully.');
+    navigate('/login', { replace: true });
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -75,6 +86,18 @@ function SidebarContent({ portalLabel, title, description, links, onNavigate }: 
           </NavLink>
         ))}
       </nav>
+      <div className={`shrink-0 border-t px-3 py-4 ${isDark ? 'border-slate-800/80' : 'border-slate-200/80'}`}>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+            isDark ? 'bg-slate-800 text-slate-50 hover:bg-slate-700' : 'bg-slate-950 text-white hover:bg-slate-800'
+          }`}
+        >
+          <appIcons.LogOut className="h-4 w-4 shrink-0" aria-hidden />
+          <span>Logout</span>
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { AxiosError } from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { X } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -39,7 +40,7 @@ import {
   useAdminTeachersQuery,
 } from '../../hooks/useAdminQueries';
 import { useAuthStore } from '../../store/authStore';
-import type { ValidationErrorResponse } from '../../types/api';
+import type { StudentResponse, UserResponse, ValidationErrorResponse } from '../../types/api';
 import { formatDateTime, formatPercentage, formatRoleLabel } from '../../utils/formatters';
 import { parseValidationErrors } from '../../utils/parseValidationErrors';
 import { getStatusAccent, getStatusTone } from '../../utils/statusStyles';
@@ -85,6 +86,10 @@ type StudentForm = z.infer<typeof studentSchema>;
 type GroupForm = z.infer<typeof groupSchema>;
 type SubjectForm = z.infer<typeof subjectSchema>;
 
+const modalInputClass = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-600';
+const modalLabelClass = 'text-sm font-medium text-slate-900 dark:text-slate-100';
+const modalErrorClass = 'mt-1 text-xs font-medium text-rose-500';
+
 function applyFormValidationErrors<FormValues extends Record<string, unknown>>(
   error: unknown,
   setError: (name: keyof FormValues, error: { type: string; message?: string }) => void,
@@ -101,10 +106,45 @@ function applyFormValidationErrors<FormValues extends Record<string, unknown>>(
   return true;
 }
 
+function CreateModalShell({
+  title,
+  eyebrow,
+  onClose,
+  children,
+}: {
+  title: string;
+  eyebrow: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm">
+      <div className="max-h-[calc(100vh-3rem)] w-full max-w-3xl overflow-y-auto rounded-[28px] bg-white p-6 shadow-2xl ring-1 ring-slate-200 dark:bg-slate-950 dark:ring-slate-800 sm:p-8">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{eyebrow}</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-950 dark:text-slate-100">{title}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+            aria-label="Close form"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function AdminTeachersPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { data, isLoading, isError } = useAdminTeachersQuery(page, limit, search.trim() || undefined);
 
   if (isLoading) return <LoadingScreen label="Loading teachers..." />;
@@ -112,7 +152,7 @@ export function AdminTeachersPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Teachers" eyebrow="Organization faculty" action={<Link to="/admin/teachers/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Add teacher" /></Link>}>
+      <SectionCard title="Teachers" eyebrow="Organization faculty" action={<button type="button" onClick={() => setIsCreateModalOpen(true)} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Add teacher" /></button>}>
         <input
           value={search}
           onChange={(event) => {
@@ -125,7 +165,7 @@ export function AdminTeachersPage() {
 
         {data.items.length === 0 ? (
           <div className="mt-6">
-            <EmptyState title="No teachers found" description="Adjust the search or create a teacher to populate the organization roster." actionLabel="Add teacher" actionTo="/admin/teachers/new" />
+            <EmptyState title="No teachers found" description="Adjust the search or create a teacher to populate the organization roster." />
           </div>
         ) : (
           <>
@@ -177,6 +217,7 @@ export function AdminTeachersPage() {
           </>
         )}
       </SectionCard>
+      {isCreateModalOpen ? <AdminCreateTeacherModal onClose={() => setIsCreateModalOpen(false)} /> : null}
     </div>
   );
 }
@@ -269,6 +310,103 @@ export function AdminCreateTeacherPage() {
   );
 }
 
+function AdminCreateTeacherModal({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const groupsQuery = useAdminGroupsQuery(1, 100);
+  const form = useForm<TeacherForm>({
+    resolver: zodResolver(teacherSchema),
+    defaultValues: { name: '', email: '', password: '', groupIds: [], phone: '' },
+  });
+  const groups = groupsQuery.data?.items ?? [];
+  const selectedGroupIds = form.watch('groupIds') ?? [];
+
+  function toggleTeacherGroup(groupId: string) {
+    const nextGroupIds = selectedGroupIds.includes(groupId)
+      ? selectedGroupIds.filter((id) => id !== groupId)
+      : [...selectedGroupIds, groupId];
+
+    form.setValue('groupIds', nextGroupIds, { shouldDirty: true, shouldValidate: true });
+  }
+
+  const mutation = useMutation({
+    mutationFn: createTeacher,
+    onSuccess: async (_teacher: UserResponse) => {
+      toast.success('Teacher created.');
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'teachers'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] });
+      onClose();
+    },
+    onError: (error) => {
+      if (applyFormValidationErrors<TeacherForm>(error, form.setError)) {
+        return;
+      }
+
+      const axiosError = error as AxiosError;
+      if (axiosError.response?.status === 404) {
+        form.setError('groupIds', { type: 'server', message: 'One or more selected classes were not found. Choose valid classes.' });
+        toast.error('One or more selected classes were not found.');
+        return;
+      }
+
+      toast.error('Unable to create the teacher right now.');
+    },
+  });
+
+  return (
+    <CreateModalShell title="Add teacher" eyebrow="Faculty onboarding" onClose={onClose}>
+      <form className="grid gap-4" onSubmit={form.handleSubmit((values) => mutation.mutate({ ...values, phone: values.phone || null }))}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className={modalLabelClass}>
+            Teacher name<span className="text-rose-500">*</span>
+            <input {...form.register('name')} placeholder="Enter name" className={`${modalInputClass} mt-2`} />
+            {form.formState.errors.name ? <p className={modalErrorClass}>{form.formState.errors.name.message}</p> : null}
+          </label>
+          <label className={modalLabelClass}>
+            Email address<span className="text-rose-500">*</span>
+            <input {...form.register('email')} placeholder="Enter email" className={`${modalInputClass} mt-2`} />
+            {form.formState.errors.email ? <p className={modalErrorClass}>{form.formState.errors.email.message}</p> : null}
+          </label>
+          <div>
+            <p className={modalLabelClass}>Class<span className="text-rose-500">*</span></p>
+            <div className="mt-2 max-h-36 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900">
+              {groupsQuery.isLoading ? <p className="px-2 py-1 text-sm text-slate-500">Loading classes...</p> : null}
+              {groups.map((group) => {
+                const checked = selectedGroupIds.includes(group.id);
+                return (
+                  <label key={group.id} className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition ${checked ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-700 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800'}`}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleTeacherGroup(group.id)} disabled={groupsQuery.isLoading || groupsQuery.isError} className="h-4 w-4 accent-slate-950" />
+                    <span>{group.name}</span>
+                  </label>
+                );
+              })}
+              {!groupsQuery.isLoading && groups.length === 0 ? <p className="px-2 py-1 text-sm text-amber-600">Create a class before adding a teacher.</p> : null}
+            </div>
+            {form.formState.errors.groupIds ? <p className={modalErrorClass}>{form.formState.errors.groupIds.message}</p> : null}
+            {groupsQuery.isError ? <p className={modalErrorClass}>Unable to load classes. Try again before creating a teacher.</p> : null}
+          </div>
+          <label className={modalLabelClass}>
+            Phone (optional)
+            <input {...form.register('phone')} placeholder="Enter phone number" className={`${modalInputClass} mt-2`} />
+          </label>
+        </div>
+        <label className={modalLabelClass}>
+          Password<span className="text-rose-500">*</span>
+          <input type="password" {...form.register('password')} placeholder="Enter password" className={`${modalInputClass} mt-2`} />
+          {form.formState.errors.password ? <p className={modalErrorClass}>{form.formState.errors.password.message}</p> : null}
+        </label>
+        <div className="mt-1 flex justify-end gap-3">
+          <button type="button" onClick={onClose} disabled={mutation.isPending} className="rounded-xl border border-slate-200 px-6 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900">
+            Cancel
+          </button>
+          <button type="submit" disabled={mutation.isPending || groupsQuery.isLoading || groupsQuery.isError || groups.length === 0} className="rounded-xl bg-slate-950 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white">
+            {mutation.isPending ? 'Updating...' : 'Update'}
+          </button>
+        </div>
+      </form>
+    </CreateModalShell>
+  );
+}
+
 export function AdminTeacherDetailPage() {
   const { teacherId = '' } = useParams();
   const queryClient = useQueryClient();
@@ -326,6 +464,7 @@ export function AdminStudentsPage() {
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
   const [groupId, setGroupId] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const studentsQuery = useAdminStudentsQuery({ groupId: groupId || undefined, page, limit, search: search.trim() || undefined });
   const groupsQuery = useAdminGroupsQuery(1, 100);
 
@@ -336,7 +475,7 @@ export function AdminStudentsPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Students" eyebrow="Organization roster" action={<Link to="/admin/students/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Add student" /></Link>}>
+      <SectionCard title="Students" eyebrow="Organization roster" action={<button type="button" onClick={() => setIsCreateModalOpen(true)} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Add student" /></button>}>
         <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
           <input
             value={search}
@@ -362,7 +501,7 @@ export function AdminStudentsPage() {
 
         {studentsQuery.data.items.length === 0 ? (
           <div className="mt-6">
-            <EmptyState title="No students found" description="Adjust the search or class filter, or create a student." actionLabel="Add student" actionTo="/admin/students/new" />
+            <EmptyState title="No students found" description="Adjust the search or class filter, or create a student." />
           </div>
         ) : (
           <>
@@ -414,6 +553,7 @@ export function AdminStudentsPage() {
           </>
         )}
       </SectionCard>
+      {isCreateModalOpen ? <AdminCreateStudentModal onClose={() => setIsCreateModalOpen(false)} /> : null}
     </div>
   );
 }
@@ -492,6 +632,114 @@ export function AdminCreateStudentPage() {
         </button>
       </form>
     </SectionCard>
+  );
+}
+
+function AdminCreateStudentModal({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const groupsQuery = useAdminGroupsQuery(1, 100);
+  const form = useForm<StudentForm>({
+    resolver: zodResolver(studentSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      groupId: '',
+      rollNumber: '',
+      parentEmail: '',
+      parentPhone: '',
+      phone: '',
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: createStudent,
+    onSuccess: async (_student: StudentResponse) => {
+      toast.success('Student created.');
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'students'] });
+      onClose();
+    },
+    onError: (error) => {
+      if (applyFormValidationErrors<StudentForm>(error, form.setError)) {
+        toast.error('Please fix the highlighted student fields.');
+        return;
+      }
+      toast.error('Unable to create the student right now.');
+    },
+  });
+
+  const groups = groupsQuery.data?.items ?? [];
+
+  return (
+    <CreateModalShell title="Add student" eyebrow="Student onboarding" onClose={onClose}>
+      <form
+        className="grid gap-4"
+        onSubmit={form.handleSubmit((values) =>
+          mutation.mutate({
+            ...values,
+            rollNumber: values.rollNumber,
+            parentEmail: values.parentEmail,
+            parentPhone: values.parentPhone,
+            phone: values.phone || null,
+          }),
+        )}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className={modalLabelClass}>
+            Student name<span className="text-rose-500">*</span>
+            <input {...form.register('name')} placeholder="Enter name" className={`${modalInputClass} mt-2`} />
+            {form.formState.errors.name ? <p className={modalErrorClass}>{form.formState.errors.name.message}</p> : null}
+          </label>
+          <label className={modalLabelClass}>
+            Roll number<span className="text-rose-500">*</span>
+            <input {...form.register('rollNumber')} placeholder="Enter roll number" className={`${modalInputClass} mt-2`} />
+            {form.formState.errors.rollNumber ? <p className={modalErrorClass}>{form.formState.errors.rollNumber.message}</p> : null}
+          </label>
+          <label className={modalLabelClass}>
+            Email address<span className="text-rose-500">*</span>
+            <input {...form.register('email')} placeholder="Enter email" className={`${modalInputClass} mt-2`} />
+            {form.formState.errors.email ? <p className={modalErrorClass}>{form.formState.errors.email.message}</p> : null}
+          </label>
+          <label className={modalLabelClass}>
+            Password<span className="text-rose-500">*</span>
+            <input type="password" {...form.register('password')} placeholder="Enter password" className={`${modalInputClass} mt-2`} />
+            {form.formState.errors.password ? <p className={modalErrorClass}>{form.formState.errors.password.message}</p> : null}
+          </label>
+          <label className={modalLabelClass}>
+            Class<span className="text-rose-500">*</span>
+            <select {...form.register('groupId')} className={`${modalInputClass} mt-2`}>
+              <option value="">Select class</option>
+              {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+            {form.formState.errors.groupId ? <p className={modalErrorClass}>{form.formState.errors.groupId.message}</p> : null}
+            {groupsQuery.isError ? <p className={modalErrorClass}>Unable to load classes. Try again before creating a student.</p> : null}
+          </label>
+          <label className={modalLabelClass}>
+            Parent email address<span className="text-rose-500">*</span>
+            <input {...form.register('parentEmail')} placeholder="Enter email" className={`${modalInputClass} mt-2`} />
+            {form.formState.errors.parentEmail ? <p className={modalErrorClass}>{form.formState.errors.parentEmail.message}</p> : null}
+          </label>
+          <label className={modalLabelClass}>
+            Parent phone number<span className="text-rose-500">*</span>
+            <input {...form.register('parentPhone')} placeholder="Enter phone number" className={`${modalInputClass} mt-2`} />
+            {form.formState.errors.parentPhone ? <p className={modalErrorClass}>{form.formState.errors.parentPhone.message}</p> : null}
+          </label>
+          <label className={modalLabelClass}>
+            Phone (optional)
+            <input {...form.register('phone')} placeholder="Enter phone number" className={`${modalInputClass} mt-2`} />
+          </label>
+        </div>
+        {!groupsQuery.isLoading && !groupsQuery.isError && groups.length === 0 ? <p className="text-sm font-medium text-amber-600">Create a class before adding a student.</p> : null}
+        <div className="mt-1 flex justify-end gap-3">
+          <button type="button" onClick={onClose} disabled={mutation.isPending} className="rounded-xl border border-slate-200 px-6 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900">
+            Cancel
+          </button>
+          <button type="submit" disabled={mutation.isPending || groupsQuery.isLoading || groupsQuery.isError || groups.length === 0} className="rounded-xl bg-slate-950 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white">
+            {mutation.isPending ? 'Updating...' : 'Update'}
+          </button>
+        </div>
+      </form>
+    </CreateModalShell>
   );
 }
 
@@ -647,6 +895,7 @@ export function AdminBulkUploadPage() {
 export function AdminGroupsPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { data, isLoading, isError } = useAdminGroupsQuery(page, limit);
 
   if (isLoading) return <LoadingScreen label="Loading classes..." />;
@@ -654,12 +903,12 @@ export function AdminGroupsPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Classes" eyebrow="Academic structure" action={<Link to="/admin/groups/new" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Create class" /></Link>}>
+      <SectionCard title="Classes" eyebrow="Academic structure" action={<button type="button" onClick={() => setIsCreateModalOpen(true)} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"><IconLabel label="Create class" /></button>}>
         <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">Review the academic classes in your organization, then open a class to assign teachers, add students, and inspect roster performance.</p>
 
         {data.items.length === 0 ? (
           <div className="mt-6">
-            <EmptyState title="No classes found" description="Create the first class to start organizing teachers and students." actionLabel="Create class" actionTo="/admin/groups/new" />
+            <EmptyState title="No classes found" description="Create the first class to start organizing teachers and students." />
           </div>
         ) : (
           <>
@@ -706,6 +955,7 @@ export function AdminGroupsPage() {
           </>
         )}
       </SectionCard>
+      {isCreateModalOpen ? <AdminCreateGroupModal onClose={() => setIsCreateModalOpen(false)} /> : null}
     </div>
   );
 }
@@ -748,6 +998,59 @@ export function AdminCreateGroupPage() {
         </button>
       </form>
     </SectionCard>
+  );
+}
+
+function AdminCreateGroupModal({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const branchesQuery = useAdminOrganizationBranchesQuery(user?.organizationId ?? '', 1, 100);
+  const form = useForm<GroupForm>({
+    resolver: zodResolver(groupSchema),
+    defaultValues: { name: '', branchId: '' },
+  });
+  const branches = branchesQuery.data?.items ?? [];
+
+  const mutation = useMutation({
+    mutationFn: (values: GroupForm) => createGroup({ name: values.name, branchId: values.branchId }),
+    onSuccess: async () => {
+      toast.success('Class created.');
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] });
+      onClose();
+    },
+    onError: () => toast.error('Unable to create the class right now.'),
+  });
+
+  return (
+    <CreateModalShell title="Create class" eyebrow="Academic structure" onClose={onClose}>
+      <form className="grid gap-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className={modalLabelClass}>
+            Class name<span className="text-rose-500">*</span>
+            <input {...form.register('name')} placeholder="Enter class name" className={`${modalInputClass} mt-2`} />
+            {form.formState.errors.name ? <p className={modalErrorClass}>{form.formState.errors.name.message}</p> : null}
+          </label>
+          <label className={modalLabelClass}>
+            Branch<span className="text-rose-500">*</span>
+            <select {...form.register('branchId')} className={`${modalInputClass} mt-2`}>
+              <option value="">Select branch</option>
+              {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+            </select>
+            {form.formState.errors.branchId ? <p className={modalErrorClass}>{form.formState.errors.branchId.message}</p> : null}
+            {branchesQuery.isError || !user?.organizationId ? <p className={modalErrorClass}>Unable to load branches. Try again before creating a class.</p> : null}
+          </label>
+        </div>
+        {!branchesQuery.isLoading && !branchesQuery.isError && branches.length === 0 ? <p className="text-sm font-medium text-amber-600">Create a branch before adding a class.</p> : null}
+        <div className="mt-1 flex justify-end gap-3">
+          <button type="button" onClick={onClose} disabled={mutation.isPending} className="rounded-xl border border-slate-200 px-6 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900">
+            Cancel
+          </button>
+          <button type="submit" disabled={mutation.isPending || branchesQuery.isLoading || branchesQuery.isError || branches.length === 0 || !user?.organizationId} className="rounded-xl bg-slate-950 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white">
+            {mutation.isPending ? 'Updating...' : 'Update'}
+          </button>
+        </div>
+      </form>
+    </CreateModalShell>
   );
 }
 
@@ -869,17 +1172,20 @@ export function AdminGroupDetailPage() {
 
 export function AdminSubjectsPage() {
   const queryClient = useQueryClient();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const { data, isLoading, isError } = useAdminSubjectsQuery(1, 100);
   const form = useForm<SubjectForm>({
     resolver: zodResolver(subjectSchema),
     defaultValues: { name: '' },
   });
+  const subjectNameError = form.formState.errors.name?.message;
 
   const mutation = useMutation({
     mutationFn: (values: SubjectForm) => createSubject(values),
     onSuccess: async () => {
       toast.success('Subject created.');
       form.reset();
+      setIsCreateOpen(false);
       await queryClient.invalidateQueries({ queryKey: ['admin', 'subjects'] });
     },
     onError: () => toast.error('Unable to create the subject right now.'),
@@ -890,31 +1196,90 @@ export function AdminSubjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-        <SectionCard title="Subjects" eyebrow="Curriculum setup">
-          {data.items.length === 0 ? (
-            <EmptyState title="No subjects yet" description="Create the first subject to support exams and analytics." />
-          ) : (
-            <div className="space-y-4">
-              {data.items.map((subject) => (
-                <div key={subject.id} className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/70">
+      <SectionCard
+        title="Subjects"
+        eyebrow="Curriculum setup"
+        action={
+          <button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+          >
+            <IconLabel label="Create subject" />
+          </button>
+        }
+      >
+        {data.items.length === 0 ? (
+          <EmptyState title="No subjects yet" description="Create the first subject to support exams and analytics." />
+        ) : (
+          <div className="space-y-3">
+            {data.items.map((subject) => (
+              <div key={subject.id} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-950/70">
+                <div className="min-w-0">
                   <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{subject.name}</h3>
-                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{subject.id}</p>
+                  <p className="mt-1 truncate text-sm text-slate-400 dark:text-slate-500">{subject.id}</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </SectionCard>
+                <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">Active</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
-        <SectionCard title="Create subject" eyebrow="Manual creation">
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-            <input {...form.register('name')} placeholder="Subject name" className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
-            <button type="submit" disabled={mutation.isPending} className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
-              <IconLabel label={mutation.isPending ? 'Creating...' : 'Create subject'} />
-            </button>
-          </form>
-        </SectionCard>
-      </div>
+      {isCreateOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 px-4 py-8 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-[24px] bg-white p-6 shadow-2xl shadow-slate-900/20 dark:bg-slate-950">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Manual creation</p>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">Create subject</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  form.reset();
+                  setIsCreateOpen(false);
+                }}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900"
+                aria-label="Close create subject dialog"
+              >
+                <span className="text-2xl leading-none" aria-hidden>
+                  &times;
+                </span>
+              </button>
+            </div>
+
+            <form className="mt-7 space-y-5" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-950 dark:text-slate-100">Subject name<span className="text-rose-600">*</span></span>
+                <input
+                  {...form.register('name')}
+                  placeholder="Enter subject name"
+                  className={`mt-2 w-full rounded-xl border bg-slate-50 px-4 py-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-4 dark:bg-slate-900 dark:text-white ${
+                    subjectNameError ? 'border-rose-300 focus:ring-rose-100' : 'border-slate-200 focus:border-slate-300 focus:ring-slate-100 dark:border-slate-700 dark:focus:border-slate-600 dark:focus:ring-slate-800'
+                  }`}
+                />
+                {subjectNameError ? <span className="mt-2 block text-sm text-rose-600">{subjectNameError}</span> : null}
+              </label>
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    form.reset();
+                    setIsCreateOpen(false);
+                  }}
+                  className="rounded-xl border border-slate-200 px-8 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900"
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={mutation.isPending} className="rounded-xl bg-slate-950 px-8 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
+                  {mutation.isPending ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

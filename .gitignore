@@ -29,3 +29,8 @@ skills-lock.json
 analytics_context
 AGENTS.md
 .agents copy
+# Added by code-review-graph
+.code-review-graph/
+.codex
+.venv
+.env

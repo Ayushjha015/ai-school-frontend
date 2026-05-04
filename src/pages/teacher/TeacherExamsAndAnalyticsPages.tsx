@@ -466,9 +466,9 @@ export function CreateExamPage() {
     ];
   }, []);
 
-  if (subjectsQuery.isLoading || questionsQuery.isLoading || (step === 4 && groupsQuery.isLoading)) return <LoadingScreen label="Loading exam builder..." />;
+  if (subjectsQuery.isLoading || questionsQuery.isLoading || (step === 3 && groupsQuery.isLoading)) return <LoadingScreen label="Loading exam builder..." />;
   if (subjectsQuery.isError || questionsQuery.isError || !subjectsQuery.data || !questionsQuery.data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load the exam builder.</div>;
-  if (step === 4 && (groupsQuery.isError || !groupsQuery.data)) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load your classes for publishing.</div>;
+  if (step === 3 && (groupsQuery.isError || !groupsQuery.data)) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load your classes for publishing.</div>;
 
   async function ensureDraftExists() {
     if (savedDraftExamId) {
@@ -514,26 +514,17 @@ export function CreateExamPage() {
     navigate('/teacher/exams');
   }
 
-  async function handleSaveAndPublish() {
-    const examId = await ensureDraftExists();
-    if (!examId) {
-      return;
-    }
-
-    toast.success('Exam draft created.');
-    setStep(4);
-  }
-
   async function handlePublishExam() {
-    if (!savedDraftExamId || selectedGroupIds.length === 0) {
+    const examId = await ensureDraftExists();
+    if (!examId || selectedGroupIds.length === 0) {
       return;
     }
 
-    await publishMutation.mutateAsync({ examId: savedDraftExamId, groupIds: selectedGroupIds });
+    await publishMutation.mutateAsync({ examId, groupIds: selectedGroupIds });
     toast.success('Exam published successfully.');
-    await queryClient.invalidateQueries({ queryKey: ['teacher', 'exam', savedDraftExamId] });
+    await queryClient.invalidateQueries({ queryKey: ['teacher', 'exam', examId] });
     await queryClient.invalidateQueries({ queryKey: ['teacher', 'exams'] });
-    navigate(`/teacher/exams/${savedDraftExamId}`);
+    navigate(`/teacher/exams/${examId}`);
   }
 
   async function handleUseGeneratedQuestions() {
@@ -845,21 +836,46 @@ export function CreateExamPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {visibleQuestions.map((question) => {
+                  {visibleQuestions.map((question, index) => {
                     const isSelected = Boolean(selectedQuestionIds[question.id]);
+                    const questionNumber = (questionBankPage - 1) * questionsQuery.data.size + index + 1;
                     return (
-                      <div key={question.id} className={`rounded-3xl border p-5 transition ${isSelected ? 'border-emerald-400/70 bg-slate-900 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]' : 'border-slate-200 bg-white'}`}>
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-200' : 'text-slate-500'}`}>{question.topic || 'Question'}</p>
-                            <h2 className={`mt-3 text-base font-semibold ${isSelected ? 'text-slate-50' : 'text-slate-900'}`}>{question.questionText}</h2>
-                            {question.tags.length > 0 ? (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {question.tags.map((tag) => <TagBadge key={tag.id} tag={tag} compact />)}
-                              </div>
-                            ) : null}
+                      <div key={question.id} className={`rounded-[22px] border bg-white p-5 transition ${isSelected ? 'border-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.18)]' : 'border-slate-200'}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex min-w-0 flex-1 gap-4">
+                            <div className="mt-9 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-base font-bold text-violet-600">
+                              {questionNumber}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-500">
+                                {question.difficulty || 'generated'}{question.topic ? ` - ${question.topic}` : ''}
+                              </p>
+                              <h2 className="mt-4 text-base font-bold leading-6 text-slate-950">{question.questionText}</h2>
+                              <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">{question.tags.length > 0 ? 'Tagged question' : 'Question bank'}</p>
+                              <ol className="mt-4 space-y-3 text-sm text-slate-500">
+                                {question.options.map((option, optionIndex) => (
+                                  <li
+                                    key={`${question.id}-${optionIndex}`}
+                                    className={`flex min-h-9 items-center gap-3 px-3 py-2 transition ${
+                                      option.isCorrect ? 'bg-emerald-50 text-emerald-500' : ''
+                                    }`}
+                                  >
+                                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${option.isCorrect ? 'border-emerald-400' : 'border-slate-900'}`}>
+                                      {option.isCorrect ? <span className="h-2 w-2 rounded-full bg-emerald-400" /> : null}
+                                    </span>
+                                    <span className="min-w-0 flex-1">{option.optionText}</span>
+                                    {option.isCorrect ? <span className="shrink-0 rounded-md bg-emerald-100 px-3 py-1 text-[10px] font-bold text-emerald-500">Correct answer</span> : null}
+                                  </li>
+                                ))}
+                              </ol>
+                              {question.tags.length > 0 ? (
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  {question.tags.map((tag) => <TagBadge key={tag.id} tag={tag} compact />)}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex shrink-0 items-center gap-3">
                             <input
                               type="number"
                               min={0}
@@ -871,7 +887,7 @@ export function CreateExamPage() {
                                   [question.id]: Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0,
                                 }));
                               }}
-                              className={`w-20 rounded-2xl border px-3 py-2 ${isSelected ? 'border-emerald-300/40 bg-slate-950 text-slate-50' : 'border-slate-200'}`}
+                              className="w-20 rounded-2xl border border-slate-200 px-3 py-2 text-slate-950"
                               disabled={!isSelected}
                             />
                             <button type="button" onClick={() => setSelectedQuestionIds((current) => { const next = { ...current }; if (next[question.id]) { delete next[question.id]; } else { next[question.id] = 1; } return next; })} className={`rounded-full px-4 py-2 text-sm font-semibold ${isSelected ? 'bg-slate-950 text-white' : 'border border-slate-300 text-slate-700'}`}>{isSelected ? 'Selected' : 'Add'}</button>
@@ -939,28 +955,35 @@ export function CreateExamPage() {
                   {generatedQuestions.map((question, index) => {
                     const selected = selectedGeneratedIndexes.includes(index);
                     return (
-                      <div key={`${question.questionText}-${index}`} className={`rounded-3xl border p-5 transition ${selected ? 'border-emerald-400/70 bg-slate-900 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]' : 'border-slate-200 bg-white'}`}>
+                      <div key={`${question.questionText}-${index}`} className={`rounded-[22px] border bg-white p-5 transition ${selected ? 'border-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.18)]' : 'border-slate-200'}`}>
                         <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${selected ? 'text-emerald-200' : 'text-slate-500'}`}>
-                              {question.difficulty || 'generated'}{question.topic ? ` - ${question.topic}` : ''}
-                            </p>
-                            <h2 className={`mt-3 text-base font-semibold ${selected ? 'text-slate-50' : 'text-slate-900'}`}>{question.questionText}</h2>
-                            <div className="mt-3">
-                              <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${selected ? 'text-slate-400' : 'text-slate-500'}`}>Auto-tagged by AI</p>
-                              {question.tags.length > 0 ? (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {question.tags.map((tag) => <TagBadge key={`${tag.id}-${index}`} tag={tag} compact />)}
-                                </div>
-                              ) : null}
+                          <div className="flex min-w-0 flex-1 gap-4">
+                            <div className="mt-9 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-base font-bold text-violet-600">
+                              {index + 1}
                             </div>
-                            <ol className={`mt-4 space-y-2 text-sm ${selected ? 'text-slate-300' : 'text-slate-600'}`}>
-                              {question.options.map((option, optionIndex) => (
-                                <li key={`${index}-${optionIndex}`} className={option.isCorrect ? (selected ? 'font-semibold text-emerald-300' : 'font-semibold text-emerald-700') : ''}>
-                                  {option.optionText}
-                                </li>
-                              ))}
-                            </ol>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-500">
+                                {question.difficulty || 'generated'}{question.topic ? ` - ${question.topic}` : ''}
+                              </p>
+                              <h2 className="mt-4 text-base font-bold leading-6 text-slate-950">{question.questionText}</h2>
+                              <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">Auto-tagged by AI</p>
+                              <ol className="mt-4 space-y-3 text-sm text-slate-500">
+                                {question.options.map((option, optionIndex) => (
+                                  <li
+                                    key={`${index}-${optionIndex}`}
+                                    className={`flex min-h-9 items-center gap-3 px-3 py-2 transition ${
+                                      option.isCorrect ? 'bg-emerald-50 text-emerald-500' : ''
+                                    }`}
+                                  >
+                                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${option.isCorrect ? 'border-emerald-400' : 'border-slate-900'}`}>
+                                      {option.isCorrect ? <span className="h-2 w-2 rounded-full bg-emerald-400" /> : null}
+                                    </span>
+                                    <span className="min-w-0 flex-1">{option.optionText}</span>
+                                    {option.isCorrect ? <span className="shrink-0 rounded-md bg-emerald-100 px-3 py-1 text-[10px] font-bold text-emerald-500">Correct answer</span> : null}
+                                  </li>
+                                ))}
+                              </ol>
+                            </div>
                           </div>
                           <input
                             type="checkbox"
@@ -980,35 +1003,62 @@ export function CreateExamPage() {
         </SectionCard>
       ) : null}
       {step === 3 ? (
-        <SectionCard title="Review and save" eyebrow="Draft creation">
-          <div className="space-y-5">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-600">Title</p><p className="mt-2 text-lg font-semibold text-slate-900">{form.getValues('title')}</p><p className="mt-4 text-sm text-slate-600">Selected questions: {selectedQuestions.length}</p></div>
-            <div className="space-y-3">{selectedQuestions.map((question) => <div key={question.id} className="rounded-3xl border border-slate-200 bg-white p-4"><p className="text-sm font-semibold text-slate-900">{question.questionText}</p><p className="mt-1 text-sm text-slate-600">Marks: {selectedQuestionIds[question.id]}</p></div>)}</div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-              <button type="button" onClick={() => savedDraftExamId ? setStep(3) : setStep(2)} disabled={createMutation.isPending || publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60"><IconLabel label="Back" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" /></button>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={handleSaveAndBack} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:opacity-60"><IconLabel label={createMutation.isPending ? 'Saving...' : 'Save and back'} icon={appIcons.Save} /></button>
-                <button type="button" onClick={handleSaveAndPublish} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"><IconLabel label={createMutation.isPending ? 'Saving draft...' : 'Save and publish'} icon={appIcons.Send} /></button>
+        <SectionCard title="Choose classes" eyebrow="Step 3">
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Select at least one class for this exam</label>
+              <select
+                value=""
+                onChange={(event) => {
+                  const groupId = event.target.value;
+                  if (!groupId) {
+                    return;
+                  }
+                  setSelectedGroupIds((current) => (current.includes(groupId) ? current : [...current, groupId]));
+                }}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+              >
+                <option value="">Select class</option>
+                {publishGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+              </select>
+            </div>
+            {selectedGroupIds.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {selectedGroupIds.map((groupId) => {
+                  const group = publishGroups.find((item) => item.id === groupId);
+                  return (
+                    <button
+                      key={groupId}
+                      type="button"
+                      onClick={() => setSelectedGroupIds((current) => current.filter((item) => item !== groupId))}
+                      className="rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-200"
+                    >
+                      {group?.name ?? 'Selected class'} ×
+                    </button>
+                  );
+                })}
               </div>
+            ) : (
+              <p className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-4 py-3 text-sm text-slate-500">No classes selected yet.</p>
+            )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+              <button type="button" onClick={() => setStep(2)} disabled={createMutation.isPending || publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60"><IconLabel label="Back" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" /></button>
+              <button type="button" onClick={() => setStep(4)} disabled={selectedGroupIds.length === 0 || createMutation.isPending || publishMutation.isPending} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"><IconLabel label="Proceed to overview" icon={appIcons.ChevronRight} /></button>
             </div>
           </div>
         </SectionCard>
       ) : null}
       {step === 4 ? (
-        <SectionCard title="Choose classes and publish" eyebrow="Step 4">
-          <div className="space-y-4">
-            <div>
-              <p className="mb-2 text-sm font-medium text-slate-700">Select classes for this exam</p>
-              <div className="space-y-2">
-                {publishGroups.map((group) => {
-                  const checked = selectedGroupIds.includes(group.id);
-                  return <label key={group.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"><input type="checkbox" checked={checked} onChange={() => setSelectedGroupIds((current) => checked ? current.filter((id) => id !== group.id) : [...current, group.id])} />{group.name}</label>;
-                })}
-              </div>
-            </div>
+        <SectionCard title="Review and publish" eyebrow="Draft creation">
+          <div className="space-y-5">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-600">Title</p><p className="mt-2 text-lg font-semibold text-slate-900">{form.getValues('title')}</p><p className="mt-4 text-sm text-slate-600">Selected questions: {selectedQuestions.length}</p><p className="mt-2 text-sm text-slate-600">Selected classes: {selectedGroupIds.map((groupId) => publishGroups.find((group) => group.id === groupId)?.name).filter(Boolean).join(', ') || 'None'}</p></div>
+            <div className="space-y-3">{selectedQuestions.map((question) => <div key={question.id} className="rounded-3xl border border-slate-200 bg-white p-4"><p className="text-sm font-semibold text-slate-900">{question.questionText}</p><p className="mt-1 text-sm text-slate-600">Marks: {selectedQuestionIds[question.id]}</p></div>)}</div>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-              <button type="button" onClick={() => setStep(3)} disabled={publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60"><IconLabel label="Back" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" /></button>
-              <button type="button" onClick={handlePublishExam} disabled={publishMutation.isPending || selectedGroupIds.length === 0 || !savedDraftExamId} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"><IconLabel label={publishMutation.isPending ? 'Publishing...' : 'Publish exam'} icon={appIcons.Send} /></button>
+              <button type="button" onClick={() => setStep(3)} disabled={createMutation.isPending || publishMutation.isPending} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60"><IconLabel label="Back" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" /></button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={handleSaveAndBack} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0} className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:opacity-60"><IconLabel label={createMutation.isPending ? 'Saving...' : 'Save and back'} icon={appIcons.Save} /></button>
+                <button type="button" onClick={handlePublishExam} disabled={createMutation.isPending || publishMutation.isPending || selectedQuestions.length === 0 || selectedGroupIds.length === 0} className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"><IconLabel label={createMutation.isPending ? 'Saving draft...' : publishMutation.isPending ? 'Publishing...' : 'Publish exam'} icon={appIcons.Send} /></button>
+              </div>
             </div>
           </div>
         </SectionCard>
@@ -1050,4 +1100,3 @@ export function TeacherGroupAnalyticsPage() {
   if (isError || !data) return <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-rose-700">We could not load class performance analytics.</div>;
   return <div className="space-y-6"><SectionCard title={data.groupName} eyebrow="Class performance"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><StatCard label="At-risk threshold" value={data.atRiskThreshold} helper="Configured threshold for flagging students." accent="amber" /><StatCard label="Trend points" value={data.examTrend.length} helper="Exam performance snapshots in this class." accent="blue" /><StatCard label="At-risk students" value={data.atRiskStudents.length} helper="Students currently below threshold." accent="rose" /></div></SectionCard><div className="grid gap-6 xl:grid-cols-2"><SectionCard title="Weakest topics" eyebrow="Learning gaps"><TopicBarList title="Weakest topics" items={data.weakestTopics} emptyLabel="No weakest-topic data available yet." /></SectionCard><SectionCard title="At-risk students" eyebrow="Needs attention">{data.atRiskStudents.length === 0 ? <EmptyState title="No at-risk students" description="This class is currently above the configured threshold." /> : <div className="space-y-3">{data.atRiskStudents.map((student) => <div key={student.studentId} className="rounded-3xl border border-slate-200 bg-white p-4"><p className="text-base font-semibold text-slate-900">{student.studentName}</p><p className="mt-1 text-sm text-slate-600">Average percentage: {formatPercentage(student.avgPercentage)}</p></div>)}</div>}</SectionCard></div></div>;
 }
-

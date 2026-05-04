@@ -10,6 +10,31 @@ import { formatDateTime } from '../../utils/formatters';
 import { getStudentExamAvailability, getStudentExamStatusLabel, getStudentExamStatusTone } from '../../utils/studentExamStatus';
 import { IconLabel, appIcons } from '../../utils/appIcons';
 
+function shouldUseBrowserFullscreen() {
+  return window.matchMedia('(pointer: fine) and (min-width: 1024px)').matches;
+}
+
+async function requestExamFullscreen() {
+  if (!shouldUseBrowserFullscreen()) {
+    return true;
+  }
+
+  if (!document.fullscreenEnabled) {
+    toast.error('Fullscreen is required to start this exam on this device.');
+    return false;
+  }
+
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+    }
+    return true;
+  } catch {
+    toast.error('Allow fullscreen to start this exam.');
+    return false;
+  }
+}
+
 export function ExamInstructionsPage() {
   const { examId = '' } = useParams();
   const navigate = useNavigate();
@@ -34,9 +59,21 @@ export function ExamInstructionsPage() {
       navigate(`/student/exams/${examId}/attempt?attemptId=${attempt.attemptId}`);
     },
     onError: () => {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen().catch(() => undefined);
+      }
       toast.error('Unable to start this exam right now.');
     },
   });
+
+  async function handleStartExam() {
+    const fullscreenAllowed = await requestExamFullscreen();
+    if (!fullscreenAllowed) {
+      return;
+    }
+
+    startMutation.mutate();
+  }
 
   if (isLoading) {
     return <LoadingScreen label="Loading exam instructions..." />;
@@ -95,7 +132,7 @@ export function ExamInstructionsPage() {
               {canStartExam ? (
                 <button
                   type="button"
-                  onClick={() => startMutation.mutate()}
+                  onClick={handleStartExam}
                   disabled={startMutation.isPending}
                   className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >

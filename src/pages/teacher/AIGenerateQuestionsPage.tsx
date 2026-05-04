@@ -6,7 +6,6 @@ import { generateQuestions, saveGeneratedQuestions } from '../../api/teacherServ
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { SectionCard } from '../../components/common/SectionCard';
-import { TagBadge } from '../../components/common/TagBadge';
 import { useSubjectsQuery } from '../../hooks/useTeacherQueries';
 import type { GeneratedQuestionPreview } from '../../types/api';
 import { IconLabel, appIcons } from '../../utils/appIcons';
@@ -107,26 +106,40 @@ export function AIGenerateQuestionsPage() {
               return (
                 <div
                   key={`${question.questionText}-${index}`}
-                  className={`rounded-3xl border p-5 transition ${
+                  className={`rounded-[22px] border bg-white p-5 transition ${
                     selected
-                      ? 'border-emerald-400/70 bg-slate-900 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]'
-                      : 'border-slate-200 bg-white'
+                      ? 'border-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.18)]'
+                      : 'border-slate-200'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${selected ? 'text-emerald-200' : 'text-slate-500'}`}>
-                        {question.difficulty || 'generated'}
-                        {question.topic ? ` - ${question.topic}` : ''}
-                      </p>
-                      <h2 className={`mt-3 text-base font-semibold ${selected ? 'text-slate-50' : 'text-slate-900'}`}>{question.questionText}</h2>
-                      <div className="mt-3">
-                        <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${selected ? 'text-slate-400' : 'text-slate-500'}`}>Auto-tagged by AI</p>
-                        {question.tags.length > 0 ? (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {question.tags.map((tag) => <TagBadge key={`${tag.id}-${index}`} tag={tag} compact />)}
-                          </div>
-                        ) : null}
+                    <div className="flex min-w-0 flex-1 gap-4">
+                      <div className="mt-9 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-base font-bold text-violet-600">
+                        {index + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-500">
+                          {question.difficulty || 'generated'}
+                          {question.topic ? ` - ${question.topic}` : ''}
+                        </p>
+                        <h2 className="mt-4 text-base font-bold leading-6 text-slate-950">{question.questionText}</h2>
+                        <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">Auto-tagged by AI</p>
+                        <ol className="mt-4 space-y-3 text-sm text-slate-500">
+                          {question.options.map((option, optionIndex) => (
+                            <li
+                              key={`${index}-${optionIndex}`}
+                              className={`flex min-h-9 items-center gap-3 px-3 py-2 transition ${
+                                option.isCorrect ? 'bg-emerald-50 text-emerald-500' : ''
+                              }`}
+                            >
+                              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${option.isCorrect ? 'border-emerald-400' : 'border-slate-900'}`}>
+                                {option.isCorrect ? <span className="h-2 w-2 rounded-full bg-emerald-400" /> : null}
+                              </span>
+                              <span className="min-w-0 flex-1">{option.optionText}</span>
+                              {option.isCorrect ? <span className="shrink-0 rounded-md bg-emerald-100 px-3 py-1 text-[10px] font-bold text-emerald-500">Correct answer</span> : null}
+                            </li>
+                          ))}
+                        </ol>
                       </div>
                     </div>
                     <input
@@ -137,13 +150,6 @@ export function AIGenerateQuestionsPage() {
                       disabled={alreadySavedCurrentPreview}
                     />
                   </div>
-                  <ol className={`mt-4 space-y-2 text-sm ${selected ? 'text-slate-300' : 'text-slate-600'}`}>
-                    {question.options.map((option, optionIndex) => (
-                      <li key={`${index}-${optionIndex}`} className={option.isCorrect ? (selected ? 'font-semibold text-emerald-300' : 'font-semibold text-emerald-700') : ''}>
-                        {option.optionText}
-                      </li>
-                    ))}
-                  </ol>
                 </div>
               );
             })}

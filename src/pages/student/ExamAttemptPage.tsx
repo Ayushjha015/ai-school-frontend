@@ -16,6 +16,10 @@ function formatSeconds(seconds: number) {
   return `${String(mins).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
 }
 
+function shouldUseBrowserFullscreen() {
+  return window.matchMedia('(pointer: fine) and (min-width: 1024px)').matches;
+}
+
 export function ExamAttemptPage() {
   const [searchParams] = useSearchParams();
   const attemptId = searchParams.get('attemptId') ?? '';
@@ -25,6 +29,7 @@ export function ExamAttemptPage() {
   const [answers, setAnswers] = useState<Record<string, string | null>>(initialSnapshot?.answers ?? {});
   const [activeIndex, setActiveIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [fullscreenBlocked, setFullscreenBlocked] = useState(false);
   const autoSubmittedRef = useRef(false);
   const warnedFallbackRef = useRef(false);
 
@@ -51,6 +56,9 @@ export function ExamAttemptPage() {
       await queryClient.invalidateQueries({ queryKey: ['student', 'results'] });
       await queryClient.invalidateQueries({ queryKey: ['student', 'summary'] });
       await queryClient.invalidateQueries({ queryKey: ['student', 'exams'] });
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => undefined);
+      }
       toast.success('Exam submitted successfully.');
       navigate(`/student/results/${attemptId}`, { replace: true });
     },
@@ -169,6 +177,24 @@ export function ExamAttemptPage() {
     };
   }, [attemptId, tabSwitchMutation]);
 
+  useEffect(() => {
+    if (!attemptId || !shouldUseBrowserFullscreen()) {
+      setFullscreenBlocked(false);
+      return;
+    }
+
+    function updateFullscreenState() {
+      setFullscreenBlocked(!document.fullscreenElement);
+    }
+
+    updateFullscreenState();
+    document.addEventListener('fullscreenchange', updateFullscreenState);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', updateFullscreenState);
+    };
+  }, [attemptId]);
+
   if (!attemptId || !initialSnapshot) {
     return (
       <EmptyState
@@ -197,8 +223,40 @@ export function ExamAttemptPage() {
     await submitMutation.mutateAsync();
   }
 
+  async function handleReenterFullscreen() {
+    if (!document.fullscreenEnabled) {
+      toast.error('Fullscreen is required to continue this exam on this device.');
+      return;
+    }
+
+    try {
+      await document.documentElement.requestFullscreen();
+      setFullscreenBlocked(false);
+    } catch {
+      toast.error('Allow fullscreen to continue this exam.');
+    }
+  }
+
+  const currentAnswer = answers[currentQuestion.id];
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.32fr_0.68fr]">
+    <div className="relative grid gap-6 xl:grid-cols-[0.32fr_0.68fr]">
+      {fullscreenBlocked ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] bg-white p-7 text-center shadow-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-500">Fullscreen required</p>
+            <h2 className="mt-3 text-2xl font-semibold text-slate-950">Return to fullscreen</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">This exam must stay in fullscreen mode on this device. Your timer will keep running until you return.</p>
+            <button
+              type="button"
+              onClick={handleReenterFullscreen}
+              className="mt-6 w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Continue in fullscreen
+            </button>
+          </div>
+        </div>
+      ) : null}
       <SectionCard title="Exam progress" eyebrow="Live attempt">
         <div className="space-y-6">
           <div className="rounded-3xl bg-slate-950 p-5 text-white">
@@ -255,7 +313,7 @@ export function ExamAttemptPage() {
 
           <div className="mt-6 space-y-3">
             {currentQuestion.options.map((option) => {
-              const selected = answers[currentQuestion.id] === option.id;
+              const selected = currentAnswer === option.id;
               return (
                 <button
                   key={option.id}
@@ -263,12 +321,14 @@ export function ExamAttemptPage() {
                   onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: option.id ?? null }))}
                   className={`flex w-full items-start gap-3 rounded-3xl border px-4 py-4 text-left transition ${
                     selected
-                      ? 'border-emerald-400/80 bg-slate-900 text-slate-50 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]'
+                      ? 'border-emerald-400 bg-emerald-50 text-slate-900 shadow-[0_0_0_1px_rgba(52,211,153,0.16)]'
                       : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  <span className={`mt-0.5 h-5 w-5 rounded-full border ${selected ? 'border-emerald-400 bg-emerald-400' : 'border-slate-300'}`} />
-                  <span className={`text-sm leading-6 ${selected ? 'text-slate-100' : 'text-slate-700'}`}>{option.optionText}</span>
+                  <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${selected ? 'border-emerald-400' : 'border-slate-300'}`}>
+                    {selected ? <span className="h-3 w-3 rounded-full bg-emerald-400" /> : null}
+                  </span>
+                  <span className={`text-sm leading-6 ${selected ? 'font-medium text-slate-900' : 'text-slate-700'}`}>{option.optionText}</span>
                 </button>
               );
             })}
@@ -284,13 +344,15 @@ export function ExamAttemptPage() {
               <IconLabel label="Previous question" icon={appIcons.ChevronRight} className="[&>svg]:rotate-180" />
             </button>
             <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: null }))}
-                className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400"
-              >
-                <IconLabel label="Clear answer" icon={appIcons.Trash2} />
-              </button>
+              {currentAnswer ? (
+                <button
+                  type="button"
+                  onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: null }))}
+                  className="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400"
+                >
+                  <IconLabel label="Clear answer" icon={appIcons.Trash2} />
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setActiveIndex((current) => Math.min(questions.length - 1, current + 1))}
