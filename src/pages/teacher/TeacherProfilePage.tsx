@@ -1,4 +1,4 @@
-﻿import { BriefcaseBusiness, Building2, Hash, Mail, Phone, ShieldCheck, UserRound } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Hash, Mail, Phone, ShieldCheck, UserRound } from 'lucide-react';
 import { ThemePreferencesCard } from '../../components/common/ThemePreferencesCard';
 import { SectionCard } from '../../components/common/SectionCard';
 import { statCardIconStyles, statCardSurfaceStyles } from '../../components/common/StatCard';

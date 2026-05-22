@@ -1,4 +1,4 @@
-﻿import type { QuestionTagResponse, TagResponse } from '../../types/api';
+import type { QuestionTagResponse, TagResponse } from '../../types/api';
 import { getTagColor } from '../../utils/tagColors';
 
 type TagLike = QuestionTagResponse | TagResponse;

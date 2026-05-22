@@ -1,12 +1,12 @@
-﻿import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import type { AxiosError } from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type UIEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { z } from 'zod';
-import { createBranch, createOrgAdmin, createOrganization } from '../../api/adminService';
+import { createBranch, createOrgAdmin, createOrganization, getCities } from '../../api/adminService';
 import { createTag, deleteTag, updateTag } from '../../api/tagService';
 import { BriefcaseBusiness, Building2, Hash, Mail, Phone, ShieldCheck, UserRound } from 'lucide-react';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -18,7 +18,7 @@ import { ThemePreferencesCard } from '../../components/common/ThemePreferencesCa
 import { useOrganizationBranchesQuery, useOrganizationQuery, useOrganizationsQuery } from '../../hooks/useAdminQueries';
 import { useTagsQuery } from '../../hooks/useTagQueries';
 import { useAuthStore } from '../../store/authStore';
-import type { TagListResponse, TagResponse, ValidationErrorResponse } from '../../types/api';
+import type { CityResponse, TagListResponse, TagResponse, ValidationErrorResponse } from '../../types/api';
 import { formatDateTime, formatRoleLabel } from '../../utils/formatters';
 import { getStatusAccent } from '../../utils/statusStyles';
 import { getTagColor } from '../../utils/tagColors';
@@ -66,6 +66,169 @@ function getTagErrorMessage(error: AxiosError<ValidationErrorResponse>) {
   }
 
   return 'Unable to save this tag right now.';
+}
+
+function getCityName(city: CityResponse) {
+  return (city.name ?? city.city ?? '').trim();
+}
+
+function CityCombobox({
+  value,
+  onChange,
+  inputClassName,
+  placeholder = 'Search or enter city',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  inputClassName: string;
+  placeholder?: string;
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const requestSequence = useRef(0);
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(value);
+  const [cities, setCities] = useState<CityResponse[]>([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setSearchTerm(value);
+  }, [value]);
+
+  useEffect(() => {
+    function handleDocumentMouseDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleDocumentMouseDown);
+    return () => document.removeEventListener('mousedown', handleDocumentMouseDown);
+  }, []);
+
+  const loadCities = useCallback(async (nextPage: number, nextSearch: string, append: boolean) => {
+    const sequence = requestSequence.current + 1;
+    requestSequence.current = sequence;
+    setError(false);
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const response = await getCities(nextPage, 20, nextSearch || undefined);
+      if (requestSequence.current !== sequence) {
+        return;
+      }
+
+      setCities((current) => (append ? [...current, ...response.items] : response.items));
+      setPage(response.page);
+      setPages(response.pages || 1);
+    } catch {
+      if (requestSequence.current === sequence) {
+        setError(true);
+        if (!append) {
+          setCities([]);
+        }
+      }
+    } finally {
+      if (requestSequence.current === sequence) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void loadCities(1, searchTerm.trim(), false);
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [loadCities, open, searchTerm]);
+
+  function handleInputChange(nextValue: string) {
+    setSearchTerm(nextValue);
+    onChange(nextValue);
+    setOpen(true);
+  }
+
+  function handleSelect(city: CityResponse) {
+    const nextValue = getCityName(city);
+    setSearchTerm(nextValue);
+    onChange(nextValue);
+    setOpen(false);
+  }
+
+  function handleOptionsScroll(event: UIEvent<HTMLDivElement>) {
+    const target = event.currentTarget;
+    const shouldLoadMore = target.scrollTop + target.clientHeight >= target.scrollHeight - 24;
+    if (!shouldLoadMore || loading || loadingMore || page >= pages) {
+      return;
+    }
+
+    void loadCities(page + 1, searchTerm.trim(), true);
+  }
+
+  const visibleCities = cities.filter((city) => getCityName(city));
+  const hasExactMatch = visibleCities.some((city) => getCityName(city).toLowerCase() === searchTerm.trim().toLowerCase());
+  const showFreeText = searchTerm.trim().length > 0 && !hasExactMatch;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <input
+        value={searchTerm}
+        onChange={(event) => handleInputChange(event.target.value)}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder}
+        className={inputClassName}
+        autoComplete="off"
+      />
+      {open ? (
+        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/12 dark:border-slate-700 dark:bg-slate-950">
+          <div className="max-h-60 overflow-y-auto py-2" onScroll={handleOptionsScroll}>
+            {loading ? <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">Loading cities...</p> : null}
+            {!loading && error ? <p className="px-4 py-3 text-sm text-rose-500">Unable to load cities.</p> : null}
+            {!loading && !error && showFreeText ? (
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => setOpen(false)}
+                className="w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
+              >
+                Use &quot;{searchTerm.trim()}&quot;
+              </button>
+            ) : null}
+            {!loading && !error && visibleCities.map((city, index) => {
+              const cityName = getCityName(city);
+              return (
+                <button
+                  key={`${city.id ?? cityName}-${index}`}
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleSelect(city)}
+                  className="w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
+                >
+                  <span className="block font-medium">{cityName}</span>
+                  {city.state ? <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{city.state}</span> : null}
+                </button>
+              );
+            })}
+            {!loading && !error && !showFreeText && visibleCities.length === 0 ? <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">No cities found.</p> : null}
+            {loadingMore ? <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">Loading more...</p> : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function OrganizationSetupForm({
@@ -158,7 +321,11 @@ function OrganizationSetupForm({
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className={labelClass}>City</label>
-              <input {...form.register('branchCity')} placeholder="Optional city" className={inputClass} />
+              <CityCombobox
+                value={form.watch('branchCity') ?? ''}
+                onChange={(nextValue) => form.setValue('branchCity', nextValue, { shouldDirty: true })}
+                inputClassName={inputClass}
+              />
             </div>
             <div>
               <label className={labelClass}>State</label>
@@ -537,7 +704,11 @@ export function CreateBranchPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">City</label>
-            <input {...form.register('city')} className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100" />
+            <CityCombobox
+              value={form.watch('city') ?? ''}
+              onChange={(nextValue) => form.setValue('city', nextValue, { shouldDirty: true })}
+              inputClassName="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+            />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">State</label>
