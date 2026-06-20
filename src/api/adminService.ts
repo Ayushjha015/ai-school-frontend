@@ -2,6 +2,7 @@ import type {
   AdminDashboardStatsResponse,
   AssignTeacherResponse,
   BranchResponse,
+  CityResponse,
   BulkUploadResponse,
   CreateStudentRequest,
   ExamLeaderboardResponse,
@@ -59,6 +60,13 @@ export async function getOrganizationBranch(orgId: string, branchId: string) {
 
 export async function createBranch(orgId: string, payload: { name: string; city?: string | null; state?: string | null }) {
   const response = await api.post<BranchResponse>(`/organizations/${orgId}/branches`, payload);
+  return unwrapApiResponse(response);
+}
+
+export async function getCities(page = 1, limit = 20, search?: string) {
+  const response = await api.get<PaginatedResponse<CityResponse>>('/cities', {
+    params: { page, limit, search: search || undefined },
+  });
   return unwrapApiResponse(response);
 }
 

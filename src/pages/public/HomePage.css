@@ -1,0 +1,59 @@
+.home-page-body {
+  background-color: #0a0f1a !important;
+  color: #dee2f2;
+  overflow-x: hidden;
+}
+
+@keyframes gradientDrift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.feature-card-hover-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(-45deg, #122017, #4ade8022, #0a0f1a, #4ade8011);
+  background-size: 400% 400%;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.group:hover .feature-card-gradient {
+  opacity: 1;
+  animation: gradientDrift 10s ease infinite;
+}
+
+.feature-card-content {
+  position: relative;
+  z-index: 10;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typewriter-pulse {
+  animation: blink 0.8s step-end infinite;
+}
+
+.accordion-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  opacity: 0;
+}
+
+.group.active .accordion-content {
+  max-height: 200px;
+  opacity: 1;
+  margin-top: 1rem;
+}

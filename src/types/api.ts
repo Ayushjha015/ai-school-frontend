@@ -534,6 +534,13 @@ export interface BranchResponse {
   createdAt: string;
 }
 
+export interface CityResponse {
+  id?: string | number | null;
+  name?: string | null;
+  city?: string | null;
+  state?: string | null;
+}
+
 export interface OrganizationDetailResponse extends OrganizationResponse {
   branches?: BranchResponse[];
   orgAdmins?: UserResponse[];
